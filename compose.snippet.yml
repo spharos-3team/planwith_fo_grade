@@ -1,0 +1,24 @@
+  fo-grade:
+    image: planwith/fo-grade:latest
+    pull_policy: never
+    container_name: planwith-fo-grade
+    restart: unless-stopped
+    depends_on:
+      discovery:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    ports:
+      # LAN/다른 PC는 Gateway :8000만 사용. 서비스 포트는 서버 localhost 디버그용.
+      - "127.0.0.1:8083:8083"
+    env_file:
+      - ./env/common.env
+      - ./env/grade.env
+    environment:
+      SERVER_PORT: 8083
+      SERVER_ADDRESS: 0.0.0.0
+      SPRING_APPLICATION_NAME: fo-grade
+      # OpenAPI JSON은 Gateway /docs/<service> 가 가져감. UI는 :8000.
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+    networks:
+      - planwith-net

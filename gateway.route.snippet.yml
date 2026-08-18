@@ -1,0 +1,33 @@
+# Gateway route snippet for fo-grade
+# Does NOT patch planwith_gateway automatically — copy each block below.
+#
+# 1) routes  → spring.cloud.gateway.server.webflux.routes
+# 2) swagger → springdoc.swagger-ui.urls
+#
+# Eureka: lb://fo-grade (must match spring.application.name)
+# Path: align with service @RequestMapping. Default: /api/fo-grade/**
+#
+# Service OpenAPI servers MUST be GATEWAY_PUBLIC_URL=/ (spring-service OpenApiConfig).
+# Otherwise Swagger Try-it-out uses Docker hostname:8083 and other PCs fail.
+
+# ── 1) routes (paste under webflux.routes) ──
+
+            - id: fo-grade
+              uri: lb://fo-grade
+              predicates:
+                - Path=/api/fo-grade/**
+            - id: fo-grade-docs
+              uri: lb://fo-grade
+              predicates:
+                - Path=/docs/fo-grade,/docs/fo-grade/**
+              filters:
+                - RewritePath=/docs/fo-grade(?<segment>/?.*), /v3/api-docs${segment}
+
+# ── 2) swagger-ui.urls (paste under springdoc.swagger-ui.urls) ──
+# routes 만 붙이면 API는 되도 Gateway Swagger 드롭다운에는 안 보임.
+
+#      - name: fo-grade
+#        url: /docs/fo-grade
+
+# ── 3) (선택) 첫 번째로 열 서비스로 지정 ──
+# springdoc.swagger-ui.urls-primary-name: fo-grade
