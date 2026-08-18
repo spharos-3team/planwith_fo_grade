@@ -1,0 +1,47 @@
+name: Deploy fo-grade
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+jobs:
+  deploy:
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: [self-hosted, planwith-server]
+    defaults:
+      run:
+        # Windows self-hosted: cmd avoids bash path bugs and PowerShell ExecutionPolicy blocks
+        shell: cmd
+
+    env:
+      IMAGE_NAME: planwith/fo-grade
+      IMAGE_TAG: latest
+      COMPOSE_FILE: C:/planwith/docker-compose.yml
+      SERVICE_NAME: fo-grade
+
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" .
+
+      - name: Stop existing container
+        continue-on-error: true
+        run: |
+          docker compose -f "${{ env.COMPOSE_FILE }}" stop "${{ env.SERVICE_NAME }}"
+          docker compose -f "${{ env.COMPOSE_FILE }}" rm -f "${{ env.SERVICE_NAME }}"
+
+      - name: Start service container
+        # --no-deps: do not start/pull discovery etc. (local planwith/* images only)
+        # --pull never: never hit Docker Hub for planwith/* tags
+        run: docker compose -f "${{ env.COMPOSE_FILE }}" up -d --no-deps --pull never "${{ env.SERVICE_NAME }}"
+
+      - name: Show running containers
+        run: docker compose -f "${{ env.COMPOSE_FILE }}" ps
+
+      - name: Prune unused images
+        run: docker image prune -f

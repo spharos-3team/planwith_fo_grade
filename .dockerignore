@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+.gradle
+build
+out
+*.md
+compose.snippet.yml
+gateway.route.snippet.yml
