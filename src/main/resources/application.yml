@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: grade-service
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_TIMEOUT:2s}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        "[spring.json.add.type.headers]": false
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:grade-service}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      auto-startup: ${GRADE_KAFKA_CONSUMER_ENABLED:true}
+
+server:
+  address: ${SERVER_ADDRESS:0.0.0.0}
+  port: ${SERVER_PORT:8083}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://discovery:8761/eureka/}
+  instance:
+    prefer-ip-address: ${EUREKA_PREFER_IP_ADDRESS:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  deploy:
+    marker: ${DEPLOY_MARKER:planwith-fo-grade-deploy-v1}
+
+grade:
+  kafka:
+    consumer-enabled: ${GRADE_KAFKA_CONSUMER_ENABLED:true}
+    topics:
+      story-created: ${GRADE_TOPIC_STORY_CREATED:planwith.story.created}
+      story-deleted: ${GRADE_TOPIC_STORY_DELETED:planwith.story.deleted}
+      follow-created: ${GRADE_TOPIC_FOLLOW_CREATED:planwith.follow.created}
+      follow-removed: ${GRADE_TOPIC_FOLLOW_REMOVED:planwith.follow.removed}
+      like-created: ${GRADE_TOPIC_LIKE_CREATED:planwith.like.created}
+      like-removed: ${GRADE_TOPIC_LIKE_REMOVED:planwith.like.removed}
+      grade-changed: ${GRADE_TOPIC_GRADE_CHANGED:planwith.grade.changed}
+      grade-reward-granted: ${GRADE_TOPIC_GRADE_REWARD_GRANTED:planwith.grade.reward-granted}
+  outbox:
+    enabled: ${GRADE_OUTBOX_ENABLED:true}
+    relay-batch-size: ${GRADE_OUTBOX_RELAY_BATCH_SIZE:50}
+    relay-interval: ${GRADE_OUTBOX_RELAY_INTERVAL:5s}
+    relay-initial-delay: ${GRADE_OUTBOX_RELAY_INITIAL_DELAY:5s}
+    send-timeout: ${GRADE_OUTBOX_SEND_TIMEOUT:10s}
+  cache:
+    key-prefix: ${GRADE_CACHE_KEY_PREFIX:grade:member}
+    ttl: ${GRADE_CACHE_TTL:10m}
