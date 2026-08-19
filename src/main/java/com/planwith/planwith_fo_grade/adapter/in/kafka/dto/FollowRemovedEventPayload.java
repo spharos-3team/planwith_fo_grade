@@ -11,6 +11,7 @@ public record FollowRemovedEventPayload(
 		String eventUuid,
 		String followerUuid,
 		String followeeUuid,
-		String occurredAt
+		String occurredAt,
+		Long sourceVersion
 ) {
 }

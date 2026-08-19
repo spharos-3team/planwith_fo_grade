@@ -12,6 +12,7 @@ public record LikeRemovedEventPayload(
 		String targetType,
 		String targetUuid,
 		String targetOwnerUuid,
-		String occurredAt
+		String occurredAt,
+		Long sourceVersion
 ) {
 }

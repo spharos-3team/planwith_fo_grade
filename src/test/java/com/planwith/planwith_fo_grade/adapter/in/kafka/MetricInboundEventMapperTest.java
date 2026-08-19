@@ -35,6 +35,8 @@ class MetricInboundEventMapperTest {
 		RecordGradeMetricCommand deletedCommand = MetricInboundEventMapper.fromStoryDeleted(deleted);
 
 		assertThat(createdCommand.memberUuid()).isEqualTo(authorUuid);
+		assertThat(createdCommand.eventUuid()).isEqualTo(created.eventUuid());
+		assertThat(createdCommand.sourceVersion()).isNull();
 		assertThat(createdCommand.metricType()).isEqualTo(MemberMetricType.STORY_COUNT.name());
 		assertThat(createdCommand.delta()).isEqualTo(1L);
 		assertThat(deletedCommand.memberUuid()).isEqualTo(authorUuid);
@@ -106,5 +108,19 @@ class MetricInboundEventMapperTest {
 
 		assertThatThrownBy(() -> MetricInboundEventMapper.fromLikeCreated(payload))
 				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void mapsOptionalSourceVersion() throws Exception {
+		String authorUuid = UUID.randomUUID().toString();
+		String eventUuid = UUID.randomUUID().toString();
+		StoryCreatedEventPayload created = objectMapper.readValue("""
+				{"eventUuid":"%s","memberUuid":"%s","storyUuid":"%s","sourceVersion":15}
+				""".formatted(eventUuid, authorUuid, UUID.randomUUID()), StoryCreatedEventPayload.class);
+
+		RecordGradeMetricCommand command = MetricInboundEventMapper.fromStoryCreated(created);
+
+		assertThat(command.eventUuid()).isEqualTo(eventUuid);
+		assertThat(command.sourceVersion()).isEqualTo(15L);
 	}
 }

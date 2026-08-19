@@ -11,6 +11,7 @@ public record StoryCreatedEventPayload(
 		String eventUuid,
 		String memberUuid,
 		String storyUuid,
-		String occurredAt
+		String occurredAt,
+		Long sourceVersion
 ) {
 }
