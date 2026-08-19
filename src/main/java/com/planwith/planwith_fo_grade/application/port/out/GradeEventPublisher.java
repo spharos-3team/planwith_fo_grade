@@ -4,5 +4,5 @@ import java.util.concurrent.CompletableFuture;
 
 public interface GradeEventPublisher {
 
-	CompletableFuture<Void> publish(String topic, String eventUuid, String payload);
+	CompletableFuture<Void> publish(String topic, String key, String payload);
 }

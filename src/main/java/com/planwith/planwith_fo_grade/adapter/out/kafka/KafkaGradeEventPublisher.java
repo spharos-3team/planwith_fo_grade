@@ -21,13 +21,13 @@ public class KafkaGradeEventPublisher implements GradeEventPublisher {
 	}
 
 	@Override
-	public CompletableFuture<Void> publish(String topic, String eventUuid, String payload) {
-		log.info("KafkaGradeEventPublisher : publish : 등급 이벤트 Kafka 발행 시작 - topic={}, eventUuid={}",
-				topic, eventUuid);
-		return kafkaTemplate.send(topic, eventUuid, payload)
+	public CompletableFuture<Void> publish(String topic, String key, String payload) {
+		log.info("KafkaGradeEventPublisher : publish : 등급 이벤트 Kafka 발행 시작 - topic={}, key={}",
+				topic, key);
+		return kafkaTemplate.send(topic, key, payload)
 				.thenAccept(result -> log.info(
-						"KafkaGradeEventPublisher : publish : 등급 이벤트 Kafka 발행 완료 - topic={}, eventUuid={}",
-						topic, eventUuid
+						"KafkaGradeEventPublisher : publish : 등급 이벤트 Kafka 발행 완료 - topic={}, key={}",
+						topic, key
 				));
 	}
 }

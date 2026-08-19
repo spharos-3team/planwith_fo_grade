@@ -72,7 +72,11 @@ class EvaluateGradeServiceIntegrationTest {
 				"\"previousGradeCode\":\"ROOKIE\"",
 				"\"currentGradeCode\":\"EXPLORER\"",
 				"\"previousGradeLevel\":1",
-				"\"currentGradeLevel\":4"
+				"\"currentGradeLevel\":4",
+				"\"monthlyTokenAmount\":50",
+				"\"profileBadge\":true",
+				"\"membershipPublicStory\":true",
+				"\"membershipAccess\":false"
 		);
 	}
 
