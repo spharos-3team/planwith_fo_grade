@@ -15,12 +15,13 @@ class KafkaGradeEventPublisherTest {
 	void sendsPayloadToKafkaWithEventUuidAsKey() {
 		@SuppressWarnings("unchecked")
 		KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
-		when(kafkaTemplate.send("planwith.grade.changed", "event-uuid", "{\"currentGrade\":\"EXPLORER\"}"))
+		String payload = "{\"eventUuid\":\"event-uuid\",\"memberUuid\":\"member-uuid\",\"previousGradeCode\":\"TRAVELER\",\"currentGradeCode\":\"EXPLORER\",\"previousGradeLevel\":3,\"currentGradeLevel\":4,\"changedAt\":\"2026-08-19T06:00:00Z\"}";
+		when(kafkaTemplate.send("planwith.grade.changed", "event-uuid", payload))
 				.thenReturn(CompletableFuture.completedFuture(null));
 		KafkaGradeEventPublisher publisher = new KafkaGradeEventPublisher(kafkaTemplate);
 
-		publisher.publish("planwith.grade.changed", "event-uuid", "{\"currentGrade\":\"EXPLORER\"}").join();
+		publisher.publish("planwith.grade.changed", "event-uuid", payload).join();
 
-		verify(kafkaTemplate).send("planwith.grade.changed", "event-uuid", "{\"currentGrade\":\"EXPLORER\"}");
+		verify(kafkaTemplate).send("planwith.grade.changed", "event-uuid", payload);
 	}
 }

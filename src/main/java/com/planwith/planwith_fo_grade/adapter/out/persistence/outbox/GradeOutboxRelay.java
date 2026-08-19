@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventPublisher;
 import com.planwith.planwith_fo_grade.config.GradeKafkaProperties;
 import com.planwith.planwith_fo_grade.config.GradeOutboxProperties;
@@ -77,6 +78,11 @@ public class GradeOutboxRelay {
 	private String topicFor(String eventType) {
 		if (GradeEventType.GRADE_REWARD_GRANTED.name().equals(eventType)) {
 			return kafkaProperties.getTopics().getGradeRewardGranted();
+		}
+		if (!GradeChangedEvent.EVENT_TYPE.equals(eventType)
+				&& !GradeEventType.GRADE_CHANGED.name().equals(eventType)) {
+			log.warn("GradeOutboxRelay : topicFor : 알 수 없는 Outbox eventType이라 grade.changed로 발행 - eventType={}",
+					eventType);
 		}
 		return kafkaProperties.getTopics().getGradeChanged();
 	}

@@ -58,6 +58,53 @@ class GradeCriteriaPersistenceAdapterIntegrationTest {
 		assertThat(threshold(traveler, GradeMetricType.FOLLOWER_COUNT)).isEqualTo(100L);
 		assertThat(threshold(traveler, GradeMetricType.RECEIVED_LIKE_COUNT)).isEqualTo(500L);
 		assertThat(traveler.benefits().get(0).benefitValue()).isEqualTo("30");
+
+		Grade leaf = gradeCriteriaPort.findByGradeCode(GradeCode.LEAF).orElseThrow();
+		assertThat(leaf.gradeName()).isEqualTo("🧳 잎새");
+
+		Grade explorer = gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow();
+		assertThat(explorer.benefits()).extracting(benefit -> benefit.benefitCode()).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY
+		);
+
+		Grade adventure = gradeCriteriaPort.findByGradeCode(GradeCode.ADVENTURE).orElseThrow();
+		assertThat(adventure.benefits()).extracting(benefit -> benefit.benefitCode()).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.NON_MEMBER_STORY_PRIORITY
+		);
+		assertThat(adventure.benefits().get(3).benefitValue()).isEqualTo("ADVENTURE");
+
+		Grade planwith = gradeCriteriaPort.findByGradeCode(GradeCode.PLANWITH).orElseThrow();
+		assertThat(planwith.benefits().get(3).benefitValue()).isEqualTo("PLANWITH");
+	}
+
+	@Test
+	void syncsExistingBenefitsWhenInitializerRunsAgain() {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		Grade explorer = gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow();
+		gradeCriteriaPort.save(Grade.reconstitute(
+				explorer.gradeId(),
+				explorer.gradeCode(),
+				explorer.gradeName(),
+				explorer.gradeLevel(),
+				explorer.description(),
+				explorer.conditions(),
+				List.of(explorer.benefits().get(0))
+		));
+
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+
+		Grade synced = gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow();
+		assertThat(synced.benefits()).extracting(benefit -> benefit.benefitCode()).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY
+		);
+		assertThat(gradeCriteriaPort.findAll()).hasSize(6);
 	}
 
 	private static long threshold(Grade grade, GradeMetricType metricType) {

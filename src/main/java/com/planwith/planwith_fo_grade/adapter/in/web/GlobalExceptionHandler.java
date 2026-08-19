@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -80,6 +81,21 @@ public class GlobalExceptionHandler {
 				exception.getParameterName());
 		return ResponseEntity.badRequest().body(
 				ApiResponse.failure("INVALID_REQUEST", "필수 요청 파라미터가 없습니다.", Map.of())
+		);
+	}
+
+	@ExceptionHandler(MissingRequestHeaderException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMissingRequestHeader(MissingRequestHeaderException exception) {
+		if ("X-Member-UUID".equals(exception.getHeaderName())) {
+			log.warn("GlobalExceptionHandler : handleMissingRequestHeader : 인증 회원 식별자 헤더 누락");
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+					ApiResponse.failure("AUTHENTICATION_REQUIRED", "인증이 필요합니다.", Map.of())
+			);
+		}
+		log.warn("GlobalExceptionHandler : handleMissingRequestHeader : 필수 요청 헤더 누락 - header={}",
+				exception.getHeaderName());
+		return ResponseEntity.badRequest().body(
+				ApiResponse.failure("INVALID_REQUEST", "필수 요청 헤더가 없습니다.", Map.of())
 		);
 	}
 

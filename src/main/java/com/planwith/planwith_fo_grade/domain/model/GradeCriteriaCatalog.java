@@ -11,6 +11,10 @@ public final class GradeCriteriaCatalog {
 
 	private static final Long UNSAVED_GRADE_ID = 0L;
 	private static final String MONTHLY_TOKEN_BENEFIT_NAME = "월간 무료 토큰";
+	private static final String PROFILE_BADGE_NAME = "프로필 배지";
+	private static final String MEMBERSHIP_PUBLIC_STORY_NAME = "멤버십 회원공개 스토리 작성";
+	private static final String PROFILE_SPECIAL_BORDER_NAME = "프로필 특별 테두리";
+	private static final String NON_MEMBER_STORY_PRIORITY_NAME = "비회원 스토리 우선 노출";
 
 	private GradeCriteriaCatalog() {
 	}
@@ -23,15 +27,15 @@ public final class GradeCriteriaCatalog {
 						1,
 						"가입 시 부여되는 기본 등급",
 						List.of(),
-						"10"
+						List.of(monthlyTokenBenefit("10", 1))
 				),
 				createGrade(
 						GradeCode.LEAF,
-						"🌿 잎새",
+						"🧳 잎새",
 						2,
 						"스토리, 팔로워, 받은 좋아요 조건을 모두 충족해야 승급한다",
 						thresholds(3L, 10L, 30L),
-						"20"
+						List.of(monthlyTokenBenefit("20", 1))
 				),
 				createGrade(
 						GradeCode.TRAVELER,
@@ -39,7 +43,7 @@ public final class GradeCriteriaCatalog {
 						3,
 						"스토리, 팔로워, 받은 좋아요 조건을 모두 충족해야 승급한다",
 						thresholds(10L, 100L, 500L),
-						"30"
+						List.of(monthlyTokenBenefit("30", 1))
 				),
 				createGrade(
 						GradeCode.EXPLORER,
@@ -47,7 +51,11 @@ public final class GradeCriteriaCatalog {
 						4,
 						"스토리, 팔로워, 받은 좋아요 조건을 모두 충족해야 승급한다",
 						thresholds(30L, 1_000L, 5_000L),
-						"50"
+						List.of(
+								monthlyTokenBenefit("50", 1),
+								profileBadge(2),
+								membershipPublicStory(3)
+						)
 				),
 				createGrade(
 						GradeCode.ADVENTURE,
@@ -55,7 +63,16 @@ public final class GradeCriteriaCatalog {
 						5,
 						"스토리, 팔로워, 받은 좋아요 조건을 모두 충족해야 승급한다",
 						thresholds(100L, 10_000L, 30_000L),
-						"70"
+						List.of(
+								monthlyTokenBenefit("70", 1),
+								profileBadge(2),
+								profileSpecialBorder(3),
+								nonMemberStoryPriority(
+										"ADVENTURE",
+										"비회원이 스토리 진입 시 스토리 우선 노출 (플랜 마스터와 분리)",
+										4
+								)
+						)
 				),
 				createGrade(
 						GradeCode.PLANWITH,
@@ -63,7 +80,16 @@ public final class GradeCriteriaCatalog {
 						6,
 						"스토리, 팔로워, 받은 좋아요 조건을 모두 충족해야 승급한다",
 						thresholds(200L, 50_000L, 150_000L),
-						"120"
+						List.of(
+								monthlyTokenBenefit("120", 1),
+								profileBadge(2),
+								profileSpecialBorder(3),
+								nonMemberStoryPriority(
+										"PLANWITH",
+										"비회원이 스토리 진입 시 스토리 우선 노출 (모험가와 분리)",
+										4
+								)
+						)
 				)
 		);
 	}
@@ -74,7 +100,7 @@ public final class GradeCriteriaCatalog {
 			int gradeLevel,
 			String description,
 			List<GradeCondition> conditions,
-			String monthlyTokenAmount
+			List<GradeBenefit> benefits
 	) {
 		return Grade.create(
 				gradeCode,
@@ -82,7 +108,7 @@ public final class GradeCriteriaCatalog {
 				gradeLevel,
 				description,
 				conditions,
-				List.of(monthlyTokenBenefit(monthlyTokenAmount))
+				benefits
 		);
 	}
 
@@ -114,14 +140,58 @@ public final class GradeCriteriaCatalog {
 		);
 	}
 
-	private static GradeBenefit monthlyTokenBenefit(String tokenAmount) {
+	private static GradeBenefit monthlyTokenBenefit(String tokenAmount, int sortOrder) {
 		return GradeBenefit.create(
 				UNSAVED_GRADE_ID,
 				BenefitCode.MONTHLY_FREE_TOKEN,
 				MONTHLY_TOKEN_BENEFIT_NAME,
 				tokenAmount,
 				"매월 지급되는 무료 토큰 수량",
-				1
+				sortOrder
+		);
+	}
+
+	private static GradeBenefit profileBadge(int sortOrder) {
+		return GradeBenefit.create(
+				UNSAVED_GRADE_ID,
+				BenefitCode.PROFILE_BADGE,
+				PROFILE_BADGE_NAME,
+				"true",
+				"프로필 배지를 지급한다",
+				sortOrder
+		);
+	}
+
+	private static GradeBenefit membershipPublicStory(int sortOrder) {
+		return GradeBenefit.create(
+				UNSAVED_GRADE_ID,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY,
+				MEMBERSHIP_PUBLIC_STORY_NAME,
+				"true",
+				"멤버십 회원공개 스토리 작성이 가능하다",
+				sortOrder
+		);
+	}
+
+	private static GradeBenefit profileSpecialBorder(int sortOrder) {
+		return GradeBenefit.create(
+				UNSAVED_GRADE_ID,
+				BenefitCode.PROFILE_SPECIAL_BORDER,
+				PROFILE_SPECIAL_BORDER_NAME,
+				"true",
+				"프로필에 특별 테두리를 적용한다",
+				sortOrder
+		);
+	}
+
+	private static GradeBenefit nonMemberStoryPriority(String exposureGroup, String description, int sortOrder) {
+		return GradeBenefit.create(
+				UNSAVED_GRADE_ID,
+				BenefitCode.NON_MEMBER_STORY_PRIORITY,
+				NON_MEMBER_STORY_PRIORITY_NAME,
+				exposureGroup,
+				description,
+				sortOrder
 		);
 	}
 }

@@ -46,9 +46,18 @@ public class GradeCriteriaPersistenceAdapter implements GradeCriteriaPort {
 	@Override
 	@Transactional
 	public Grade save(Grade grade) {
-		GradeJpaEntity saved = gradeRepository.save(GradePersistenceMapper.toEntity(grade));
+		GradeJpaEntity entity = resolveEntity(grade);
+		GradePersistenceMapper.applyToEntity(grade, entity);
+		GradeJpaEntity saved = gradeRepository.save(entity);
 		initializeCriteria(saved);
 		return GradePersistenceMapper.toDomain(saved);
+	}
+
+	private GradeJpaEntity resolveEntity(Grade grade) {
+		if (grade.gradeId() != null) {
+			return gradeRepository.findById(grade.gradeId()).orElseGet(GradeJpaEntity::new);
+		}
+		return gradeRepository.findByGradeCode(grade.gradeCode()).orElseGet(GradeJpaEntity::new);
 	}
 
 	private static Grade toDomain(GradeJpaEntity entity) {

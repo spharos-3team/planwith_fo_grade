@@ -4,6 +4,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -15,6 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_grade.application.GradeCriteriaInitializer;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
+import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
+import com.planwith.planwith_fo_grade.domain.model.GradeCode;
+import com.planwith.planwith_fo_grade.domain.model.GradeMember;
+import com.planwith.planwith_fo_grade.domain.model.MemberGradeMetric;
+import com.planwith.planwith_fo_grade.domain.model.MemberMetricType;
+import com.planwith.planwith_fo_grade.domain.model.vo.MemberUuid;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -27,6 +37,12 @@ class GradeQueryControllerIntegrationTest {
 
 	@Autowired
 	private GradeCriteriaPort gradeCriteriaPort;
+
+	@Autowired
+	private GradeMemberPort gradeMemberPort;
+
+	@Autowired
+	private MemberGradeMetricPort memberGradeMetricPort;
 
 	@Test
 	void listsAllGradesFromDatabase() throws Exception {
@@ -48,5 +64,74 @@ class GradeQueryControllerIntegrationTest {
 				.andExpect(jsonPath("$.data[2].conditions[2].thresholdValue").value(500))
 				.andExpect(jsonPath("$.data[3].gradeCode").value("EXPLORER"))
 				.andExpect(jsonPath("$.data[3].gradeLevel").value(4));
+	}
+
+	@Test
+	void returnsMyGradeManagementForLeafMember() throws Exception {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		gradeMemberPort.save(GradeMember.assign(
+				gradeCriteriaPort.findByGradeCode(GradeCode.LEAF).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		saveMetric(memberUuid, MemberMetricType.STORY_COUNT, 7L, "story-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 62L, "follow-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 410L, "like-service", assignedAt);
+
+		mockMvc.perform(get("/api/grade/grades/me").header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.currentGrade.code").value("LEAF"))
+				.andExpect(jsonPath("$.data.currentGrade.name").value("🧳 잎새"))
+				.andExpect(jsonPath("$.data.currentGrade.level").value(2))
+				.andExpect(jsonPath("$.data.currentGrade.benefits[0].benefitCode").value("MONTHLY_FREE_TOKEN"))
+				.andExpect(jsonPath("$.data.currentMetrics.storyCount").value(7))
+				.andExpect(jsonPath("$.data.currentMetrics.followerCount").value(62))
+				.andExpect(jsonPath("$.data.currentMetrics.receivedLikeCount").value(410))
+				.andExpect(jsonPath("$.data.nextGrade.code").value("TRAVELER"))
+				.andExpect(jsonPath("$.data.nextGrade.conditions[0].thresholdValue").value(10))
+				.andExpect(jsonPath("$.data.progress.story.current").value(7))
+				.andExpect(jsonPath("$.data.progress.story.required").value(10))
+				.andExpect(jsonPath("$.data.progress.story.remaining").value(3))
+				.andExpect(jsonPath("$.data.progress.story.percentage").value(70))
+				.andExpect(jsonPath("$.data.progress.follower.remaining").value(38))
+				.andExpect(jsonPath("$.data.progress.follower.percentage").value(62))
+				.andExpect(jsonPath("$.data.progress.receivedLike.remaining").value(90))
+				.andExpect(jsonPath("$.data.progress.receivedLike.percentage").value(82));
+	}
+
+	@Test
+	void returnsNotFoundWhenMemberGradeIsMissing() throws Exception {
+		mockMvc.perform(get("/api/grade/grades/me").header("X-Member-UUID", UUID.randomUUID()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("GRADE_NOT_FOUND"));
+	}
+
+	@Test
+	void returnsUnauthorizedWhenMemberHeaderIsMissing() throws Exception {
+		mockMvc.perform(get("/api/grade/grades/me"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+	}
+
+	private void saveMetric(
+			String memberUuid,
+			MemberMetricType metricType,
+			long currentValue,
+			String sourceService,
+			LocalDateTime synchronizedAt
+	) {
+		MemberUuid uuid = MemberUuid.from(memberUuid);
+		MemberGradeMetric current = memberGradeMetricPort.findByMemberUuidAndMetricType(uuid, metricType)
+				.orElseGet(() -> MemberGradeMetric.initialize(uuid, metricType, sourceService, synchronizedAt));
+		memberGradeMetricPort.save(current.synchronize(
+				currentValue,
+				sourceService,
+				current.sourceVersion() + 1,
+				synchronizedAt
+		));
 	}
 }

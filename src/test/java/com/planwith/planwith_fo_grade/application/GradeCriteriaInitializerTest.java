@@ -44,13 +44,35 @@ class GradeCriteriaInitializerTest {
 		initializer.run(new DefaultApplicationArguments());
 
 		assertThat(port.findAll()).hasSize(6);
-		assertThat(port.saveCount).isEqualTo(6);
+		assertThat(port.findByGradeCode(GradeCode.LEAF).orElseThrow().gradeName()).isEqualTo("🧳 잎새");
+		assertThat(port.findByGradeCode(GradeCode.EXPLORER).orElseThrow().benefits()).hasSize(3);
+	}
+
+	@Test
+	void updatesExistingGradeNameAndBenefits() {
+		InMemoryGradeCriteriaPort port = new InMemoryGradeCriteriaPort();
+		GradeCriteriaInitializer initializer = new GradeCriteriaInitializer(port);
+		initializer.run(new DefaultApplicationArguments());
+		port.save(Grade.create(
+				GradeCode.LEAF,
+				"🌿 잎새",
+				2,
+				"old",
+				List.of(),
+				List.of()
+		));
+
+		initializer.run(new DefaultApplicationArguments());
+
+		Grade leaf = port.findByGradeCode(GradeCode.LEAF).orElseThrow();
+		assertThat(leaf.gradeName()).isEqualTo("🧳 잎새");
+		assertThat(leaf.benefits()).hasSize(1);
+		assertThat(port.findAll()).hasSize(6);
 	}
 
 	private static final class InMemoryGradeCriteriaPort implements GradeCriteriaPort {
 
 		private final Map<GradeCode, Grade> grades = new LinkedHashMap<>();
-		private int saveCount;
 
 		@Override
 		public List<Grade> findAll() {
@@ -70,7 +92,6 @@ class GradeCriteriaInitializerTest {
 
 		@Override
 		public Grade save(Grade grade) {
-			saveCount++;
 			grades.put(grade.gradeCode(), grade);
 			return grade;
 		}
