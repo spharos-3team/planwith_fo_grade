@@ -107,6 +107,67 @@ class GradeQueryControllerIntegrationTest {
 	}
 
 	@Test
+	void returnsIntegratedGradeManagementPageForLeafMember() throws Exception {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		gradeMemberPort.save(GradeMember.assign(
+				gradeCriteriaPort.findByGradeCode(GradeCode.LEAF).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		saveMetric(memberUuid, MemberMetricType.STORY_COUNT, 7L, "story-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 62L, "follow-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 410L, "like-service", assignedAt);
+
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.grades.length()").value(6))
+				.andExpect(jsonPath("$.data.grades[0].gradeCode").value("ROOKIE"))
+				.andExpect(jsonPath("$.data.grades[1].gradeCode").value("LEAF"))
+				.andExpect(jsonPath("$.data.grades[2].gradeCode").value("TRAVELER"))
+				.andExpect(jsonPath("$.data.grades[2].conditions[0].thresholdValue").value(10))
+				.andExpect(jsonPath("$.data.grades[5].gradeCode").value("PLANWITH"))
+				.andExpect(jsonPath("$.data.currentGrade.code").value("LEAF"))
+				.andExpect(jsonPath("$.data.currentGrade.name").value("🧳 잎새"))
+				.andExpect(jsonPath("$.data.currentGrade.level").value(2))
+				.andExpect(jsonPath("$.data.currentMetrics.storyCount").value(7))
+				.andExpect(jsonPath("$.data.currentMetrics.followerCount").value(62))
+				.andExpect(jsonPath("$.data.currentMetrics.receivedLikeCount").value(410))
+				.andExpect(jsonPath("$.data.nextGrade.code").value("TRAVELER"))
+				.andExpect(jsonPath("$.data.nextGrade.conditions[0].thresholdValue").value(10))
+				.andExpect(jsonPath("$.data.progress.story.remaining").value(3))
+				.andExpect(jsonPath("$.data.progress.story.percentage").value(70))
+				.andExpect(jsonPath("$.data.progress.follower.remaining").value(38))
+				.andExpect(jsonPath("$.data.progress.receivedLike.remaining").value(90))
+				.andExpect(jsonPath("$.data.currentBenefits.monthlyTokenAmount").value(20))
+				.andExpect(jsonPath("$.data.currentBenefits.profileBadge").value(false));
+	}
+
+	@Test
+	void returnsIntegratedPageWithoutNextGradeForHighestGrade() throws Exception {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		gradeMemberPort.save(GradeMember.assign(
+				gradeCriteriaPort.findByGradeCode(GradeCode.PLANWITH).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.grades.length()").value(6))
+				.andExpect(jsonPath("$.data.currentGrade.code").value("PLANWITH"))
+				.andExpect(jsonPath("$.data.nextGrade").value(nullValue()))
+				.andExpect(jsonPath("$.data.progress.story.percentage").value(100))
+				.andExpect(jsonPath("$.data.currentBenefits.monthlyTokenAmount").value(120))
+				.andExpect(jsonPath("$.data.currentBenefits.membershipAccess").value(true))
+				.andExpect(jsonPath("$.data.currentBenefits.storyPriorityExposure").value("HIGHEST"));
+	}
+
+	@Test
 	void returnsCurrentBenefitsForExplorerMember() throws Exception {
 		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
 		String memberUuid = UUID.randomUUID().toString();
@@ -155,8 +216,23 @@ class GradeQueryControllerIntegrationTest {
 	}
 
 	@Test
+	void returnsNotFoundWhenIntegratedManagementMemberGradeIsMissing() throws Exception {
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", UUID.randomUUID()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("GRADE_NOT_FOUND"));
+	}
+
+	@Test
 	void returnsUnauthorizedWhenMemberHeaderIsMissing() throws Exception {
 		mockMvc.perform(get("/api/grade/grades/me"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+	}
+
+	@Test
+	void returnsUnauthorizedWhenIntegratedManagementHeaderIsMissing() throws Exception {
+		mockMvc.perform(get("/api/grade/grades/me/management"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
 	}

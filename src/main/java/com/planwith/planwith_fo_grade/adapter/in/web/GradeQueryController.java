@@ -15,6 +15,7 @@ import com.planwith.planwith_fo_grade.adapter.in.web.dto.ApiResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.CurrentBenefitSummaryResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeBenefitResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeConditionResponse;
+import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementPageResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse.CurrentGradeResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse.CurrentMetricsResponse;
@@ -24,11 +25,13 @@ import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeResponse;
 import com.planwith.planwith_fo_grade.application.port.in.GetAllGradesQueryUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.GetCurrentBenefitsQueryUseCase;
+import com.planwith.planwith_fo_grade.application.port.in.GetGradeManagementPageQueryUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.GetMyGradeManagementQueryUseCase;
 import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeBenefitView;
 import com.planwith.planwith_fo_grade.application.query.GradeCatalogView;
 import com.planwith.planwith_fo_grade.application.query.GradeConditionView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementPageView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView.MetricProgressView;
 
@@ -41,15 +44,18 @@ public class GradeQueryController {
 	private final GetAllGradesQueryUseCase getAllGradesQueryUseCase;
 	private final GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase;
 	private final GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase;
+	private final GetGradeManagementPageQueryUseCase getGradeManagementPageQueryUseCase;
 
 	public GradeQueryController(
 			GetAllGradesQueryUseCase getAllGradesQueryUseCase,
 			GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase,
-			GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase
+			GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase,
+			GetGradeManagementPageQueryUseCase getGradeManagementPageQueryUseCase
 	) {
 		this.getAllGradesQueryUseCase = getAllGradesQueryUseCase;
 		this.getMyGradeManagementQueryUseCase = getMyGradeManagementQueryUseCase;
 		this.getCurrentBenefitsQueryUseCase = getCurrentBenefitsQueryUseCase;
+		this.getGradeManagementPageQueryUseCase = getGradeManagementPageQueryUseCase;
 	}
 
 	// 전체 등급표 조회
@@ -74,6 +80,19 @@ public class GradeQueryController {
 		return ResponseEntity.ok(ApiResponse.success(response));
 	}
 
+	// 등급 관리 통합 조회
+	@GetMapping("/grades/me/management")
+	public ResponseEntity<ApiResponse<GradeManagementPageResponse>> getMyGradeManagementPage(
+			@RequestHeader("X-Member-UUID") UUID memberUuid
+	) {
+		log.info("GradeQueryController : GET getMyGradeManagementPage : 등급 관리 통합 조회 요청 - memberUuid={}", memberUuid);
+		GradeManagementPageResponse response = toPageResponse(
+				getGradeManagementPageQueryUseCase.get(memberUuid.toString())
+		);
+		log.info("GradeQueryController : GET getMyGradeManagementPage : 등급 관리 통합 조회 완료 - memberUuid={}", memberUuid);
+		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
 	// 현재 혜택 조회
 	@GetMapping("/grades/me/benefits")
 	public ResponseEntity<ApiResponse<CurrentBenefitSummaryResponse>> getMyCurrentBenefits(
@@ -94,6 +113,18 @@ public class GradeQueryController {
 				view.gradeLevel(),
 				view.conditions().stream().map(GradeQueryController::toConditionResponse).toList(),
 				view.benefits().stream().map(GradeQueryController::toBenefitResponse).toList()
+		);
+	}
+
+	private static GradeManagementPageResponse toPageResponse(GradeManagementPageView view) {
+		GradeManagementResponse member = toManagementResponse(view.member());
+		return new GradeManagementPageResponse(
+				view.grades().stream().map(GradeQueryController::toResponse).toList(),
+				member.currentGrade(),
+				member.currentMetrics(),
+				member.nextGrade(),
+				member.progress(),
+				member.currentBenefits()
 		);
 	}
 
