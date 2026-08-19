@@ -65,4 +65,20 @@ class GradeMemberPersistenceAdapterIntegrationTest {
 		GradeMember saved = gradeMemberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
 		assertThat(saved.gradeAssignedAt()).isEqualTo(firstAssignedAt);
 	}
+
+	@Test
+	void findsOnlyActiveMembers() {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		String activeUuid = UUID.randomUUID().toString();
+		String suspendedUuid = UUID.randomUUID().toString();
+		Long rookieId = gradeCriteriaPort.findLowestGrade().orElseThrow().gradeId();
+		gradeMemberPort.save(GradeMember.assign(rookieId, MemberUuid.from(activeUuid), assignedAt));
+		gradeMemberPort.save(GradeMember.assign(rookieId, MemberUuid.from(suspendedUuid), assignedAt).suspend());
+
+		assertThat(gradeMemberPort.findAllActive())
+				.extracting(member -> member.memberUuid().toString())
+				.contains(activeUuid)
+				.doesNotContain(suspendedUuid);
+	}
 }

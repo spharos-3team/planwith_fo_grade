@@ -15,13 +15,16 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(
 		name = "grade_reward_history",
-		indexes = @Index(name = "idx_grade_reward_member", columnList = "member_uuid, reward_month")
+		uniqueConstraints = @UniqueConstraint(
+				name = "uk_grade_reward_member_month",
+				columnNames = {"member_uuid", "reward_month"}
+		)
 )
 class GradeRewardHistoryJpaEntity {
 

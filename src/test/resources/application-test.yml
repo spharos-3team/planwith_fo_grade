@@ -37,3 +37,5 @@ grade:
     consumer-enabled: false
   outbox:
     enabled: false
+  reward:
+    monthly-enabled: false

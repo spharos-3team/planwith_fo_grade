@@ -9,6 +9,7 @@ import com.planwith.planwith_fo_grade.config.DeployProperties;
 import com.planwith.planwith_fo_grade.config.GradeCacheProperties;
 import com.planwith.planwith_fo_grade.config.GradeKafkaProperties;
 import com.planwith.planwith_fo_grade.config.GradeOutboxProperties;
+import com.planwith.planwith_fo_grade.config.GradeRewardProperties;
 
 @SpringBootApplication
 @EnableScheduling
@@ -16,7 +17,8 @@ import com.planwith.planwith_fo_grade.config.GradeOutboxProperties;
 		DeployProperties.class,
 		GradeKafkaProperties.class,
 		GradeOutboxProperties.class,
-		GradeCacheProperties.class
+		GradeCacheProperties.class,
+		GradeRewardProperties.class
 })
 public class PlanwithFoGradeApplication {
 
