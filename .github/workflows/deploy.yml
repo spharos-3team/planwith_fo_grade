@@ -20,7 +20,7 @@ jobs:
       IMAGE_NAME: planwith/fo-grade
       IMAGE_TAG: latest
       COMPOSE_FILE: C:/planwith/docker-compose.yml
-      SERVICE_NAME: fo-grade
+      SERVICE_NAME: planwith-fo-grade
 
     steps:
       - name: Checkout latest code
