@@ -74,12 +74,14 @@ class GradeCriteriaPersistenceAdapterIntegrationTest {
 				BenefitCode.MONTHLY_FREE_TOKEN,
 				BenefitCode.PROFILE_BADGE,
 				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY,
+				BenefitCode.MEMBERSHIP_ACCESS,
 				BenefitCode.NON_MEMBER_STORY_PRIORITY
 		);
-		assertThat(adventure.benefits().get(3).benefitValue()).isEqualTo("ADVENTURE");
+		assertThat(adventure.benefits().get(5).benefitValue()).isEqualTo("ADVENTURE");
 
 		Grade planwith = gradeCriteriaPort.findByGradeCode(GradeCode.PLANWITH).orElseThrow();
-		assertThat(planwith.benefits().get(3).benefitValue()).isEqualTo("PLANWITH");
+		assertThat(planwith.benefits().get(5).benefitValue()).isEqualTo("HIGHEST");
 	}
 
 	@Test

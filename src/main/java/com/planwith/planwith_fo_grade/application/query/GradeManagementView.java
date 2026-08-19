@@ -6,7 +6,8 @@ public record GradeManagementView(
 		CurrentGradeView currentGrade,
 		CurrentMetricsView currentMetrics,
 		NextGradeView nextGrade,
-		ProgressView progress
+		ProgressView progress,
+		CurrentBenefitSummaryView currentBenefits
 ) {
 
 	public record CurrentGradeView(

@@ -59,6 +59,9 @@ class GetMyGradeManagementServiceTest {
 		assertThat(view.progress().story()).isEqualTo(new MetricProgressView(7L, 10L, 3L, 70));
 		assertThat(view.progress().follower()).isEqualTo(new MetricProgressView(62L, 100L, 38L, 62));
 		assertThat(view.progress().receivedLike()).isEqualTo(new MetricProgressView(410L, 500L, 90L, 82));
+		assertThat(view.currentBenefits().monthlyTokenAmount()).isEqualTo(20);
+		assertThat(view.currentBenefits().profileBadge()).isFalse();
+		assertThat(view.currentBenefits().membershipAccess()).isFalse();
 	}
 
 	@Test

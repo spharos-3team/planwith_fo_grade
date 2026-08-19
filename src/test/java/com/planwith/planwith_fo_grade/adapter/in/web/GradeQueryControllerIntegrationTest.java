@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_grade.adapter.in.web;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -99,7 +100,50 @@ class GradeQueryControllerIntegrationTest {
 				.andExpect(jsonPath("$.data.progress.follower.remaining").value(38))
 				.andExpect(jsonPath("$.data.progress.follower.percentage").value(62))
 				.andExpect(jsonPath("$.data.progress.receivedLike.remaining").value(90))
-				.andExpect(jsonPath("$.data.progress.receivedLike.percentage").value(82));
+				.andExpect(jsonPath("$.data.progress.receivedLike.percentage").value(82))
+				.andExpect(jsonPath("$.data.currentBenefits.monthlyTokenAmount").value(20))
+				.andExpect(jsonPath("$.data.currentBenefits.profileBadge").value(false))
+				.andExpect(jsonPath("$.data.currentBenefits.membershipAccess").value(false));
+	}
+
+	@Test
+	void returnsCurrentBenefitsForExplorerMember() throws Exception {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		gradeMemberPort.save(GradeMember.assign(
+				gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+
+		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.gradeCode").value("EXPLORER"))
+				.andExpect(jsonPath("$.data.monthlyTokenAmount").value(50))
+				.andExpect(jsonPath("$.data.profileBadge").value(true))
+				.andExpect(jsonPath("$.data.profileSpecialBorder").value(false))
+				.andExpect(jsonPath("$.data.membershipPublicStory").value(true))
+				.andExpect(jsonPath("$.data.membershipAccess").value(false))
+				.andExpect(jsonPath("$.data.storyPriorityExposure").value(nullValue()));
+	}
+
+	@Test
+	void returnsHighestStoryPriorityForPlanwithMember() throws Exception {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		gradeMemberPort.save(GradeMember.assign(
+				gradeCriteriaPort.findByGradeCode(GradeCode.PLANWITH).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+
+		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Member-UUID", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.monthlyTokenAmount").value(120))
+				.andExpect(jsonPath("$.data.membershipAccess").value(true))
+				.andExpect(jsonPath("$.data.storyPriorityExposure").value("HIGHEST"));
 	}
 
 	@Test
