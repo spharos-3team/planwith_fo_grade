@@ -28,7 +28,9 @@ public class GradeMemberPersistenceAdapter implements GradeMemberPort {
 	@Override
 	@Transactional
 	public GradeMember save(GradeMember member) {
-		GradeMemberJpaEntity saved = gradeMemberRepository.save(GradePersistenceMapper.toEntity(member));
-		return GradePersistenceMapper.toDomain(saved);
+		GradeMemberJpaEntity entity = gradeMemberRepository.findById(member.memberUuid().value())
+				.orElseGet(() -> GradeMemberJpaEntity.createNew(member.memberUuid().value()));
+		GradePersistenceMapper.applyToEntity(member, entity);
+		return GradePersistenceMapper.toDomain(gradeMemberRepository.save(entity));
 	}
 }

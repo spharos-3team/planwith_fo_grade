@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +47,9 @@ class EvaluateGradeServiceIntegrationTest {
 	@Autowired
 	private MemberGradeMetricPort memberGradeMetricPort;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
 	@Test
 	void promotesRookieToExplorerWhenAllExplorerThresholdsAreMet() {
 		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
@@ -63,6 +67,12 @@ class EvaluateGradeServiceIntegrationTest {
 				gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId()
 		);
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
+		assertThat(outboxCount(memberUuid)).isEqualTo(1);
+		assertThat(outboxPayload(memberUuid)).contains(
+				"\"fromGradeCode\":\"ROOKIE\"",
+				"\"toGradeCode\":\"EXPLORER\"",
+				"\"eventType\":\"GradeChanged\""
+		);
 	}
 
 	@Test
@@ -86,6 +96,24 @@ class EvaluateGradeServiceIntegrationTest {
 				gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId()
 		);
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
+		assertThat(outboxCount(memberUuid)).isEqualTo(1);
+	}
+
+	private long outboxCount(String memberUuid) {
+		Long count = jdbcTemplate.queryForObject(
+				"select count(*) from grade_outbox where aggregate_uuid = ?",
+				Long.class,
+				memberUuid
+		);
+		return count == null ? 0L : count;
+	}
+
+	private String outboxPayload(String memberUuid) {
+		return jdbcTemplate.queryForObject(
+				"select payload from grade_outbox where aggregate_uuid = ?",
+				String.class,
+				memberUuid
+		);
 	}
 
 	private void saveMetric(

@@ -13,7 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.planwith.planwith_fo_grade.application.command.ChangeMemberGradeCommand;
 import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
+import com.planwith.planwith_fo_grade.application.port.in.ChangeMemberGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
@@ -33,16 +35,19 @@ public class EvaluateGradeService implements EvaluateGradeUseCase {
 	private final GradeMemberPort gradeMemberPort;
 	private final GradeCriteriaPort gradeCriteriaPort;
 	private final MemberGradeMetricPort memberGradeMetricPort;
+	private final ChangeMemberGradeUseCase changeMemberGradeUseCase;
 	private final GradeEvaluator gradeEvaluator = new GradeEvaluator();
 
 	public EvaluateGradeService(
 			GradeMemberPort gradeMemberPort,
 			GradeCriteriaPort gradeCriteriaPort,
-			MemberGradeMetricPort memberGradeMetricPort
+			MemberGradeMetricPort memberGradeMetricPort,
+			ChangeMemberGradeUseCase changeMemberGradeUseCase
 	) {
 		this.gradeMemberPort = gradeMemberPort;
 		this.gradeCriteriaPort = gradeCriteriaPort;
 		this.memberGradeMetricPort = memberGradeMetricPort;
+		this.changeMemberGradeUseCase = changeMemberGradeUseCase;
 	}
 
 	@Override
@@ -103,10 +108,14 @@ public class EvaluateGradeService implements EvaluateGradeUseCase {
 		}
 
 		Grade promoted = promotion.get();
-		GradeMember saved = gradeMemberPort.save(gradeMember.changeGrade(promoted.gradeId(), evaluatedAt));
+		changeMemberGradeUseCase.change(new ChangeMemberGradeCommand(
+				memberUuid.toString(),
+				currentGrade.gradeCode().name(),
+				promoted.gradeCode().name()
+		));
 		log.info(
-				"EvaluateGradeService : evaluate : 등급 승급 완료 - memberUuid={}, fromGradeCode={}, toGradeCode={}",
-				saved.memberUuid(),
+				"EvaluateGradeService : evaluate : 등급 승급 요청 완료 - memberUuid={}, fromGradeCode={}, toGradeCode={}",
+				memberUuid,
 				currentGrade.gradeCode(),
 				promoted.gradeCode()
 		);
