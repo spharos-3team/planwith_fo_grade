@@ -80,6 +80,7 @@ grade:
       follow-removed: ${GRADE_TOPIC_FOLLOW_REMOVED:planwith.follow.removed}
       like-created: ${GRADE_TOPIC_LIKE_CREATED:planwith.like.created}
       like-removed: ${GRADE_TOPIC_LIKE_REMOVED:planwith.like.removed}
+      member-created: ${GRADE_TOPIC_MEMBER_CREATED:planwith.member.created}
       grade-changed: ${GRADE_TOPIC_GRADE_CHANGED:planwith.grade.changed}
       grade-reward-granted: ${GRADE_TOPIC_GRADE_REWARD_GRANTED:planwith.grade.reward-granted}
   outbox:

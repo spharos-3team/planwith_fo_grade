@@ -3,6 +3,7 @@ package com.planwith.planwith_fo_grade.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,12 @@ class GradeCriteriaInitializerTest {
 		@Override
 		public Optional<Grade> findByGradeCode(GradeCode gradeCode) {
 			return Optional.ofNullable(grades.get(gradeCode));
+		}
+
+		@Override
+		public Optional<Grade> findLowestGrade() {
+			return grades.values().stream()
+					.min(Comparator.comparingInt(Grade::gradeLevel));
 		}
 
 		@Override

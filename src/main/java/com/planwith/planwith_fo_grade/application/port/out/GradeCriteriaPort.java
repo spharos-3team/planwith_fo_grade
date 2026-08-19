@@ -12,5 +12,7 @@ public interface GradeCriteriaPort {
 
 	Optional<Grade> findByGradeCode(GradeCode gradeCode);
 
+	Optional<Grade> findLowestGrade();
+
 	Grade save(Grade grade);
 }
