@@ -23,6 +23,7 @@ repositories {
 
 ext {
 	set('springCloudVersion', "2025.1.2")
+	set('springdocVersion', "3.0.3")
 }
 
 dependencies {
@@ -33,6 +34,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
 	implementation 'org.springframework.boot:spring-boot-starter-kafka'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

@@ -13,6 +13,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.ApiResponse;
 import com.planwith.planwith_fo_grade.domain.exception.GradeDomainException;
@@ -79,6 +80,15 @@ public class GlobalExceptionHandler {
 				exception.getParameterName());
 		return ResponseEntity.badRequest().body(
 				ApiResponse.failure("INVALID_REQUEST", "필수 요청 파라미터가 없습니다.", Map.of())
+		);
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException exception) {
+		log.warn("GlobalExceptionHandler : handleNoResource : 요청 경로 없음 - path={}",
+				exception.getResourcePath());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+				ApiResponse.failure("NOT_FOUND", "요청한 경로를 찾을 수 없습니다.", Map.of())
 		);
 	}
 

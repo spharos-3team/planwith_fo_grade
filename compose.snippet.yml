@@ -1,7 +1,7 @@
-  fo-grade:
-    image: planwith/fo-grade:latest
+  planwith-fo-grade:
+    image: planwith/planwith-fo-grade:latest
     pull_policy: never
-    container_name: planwith-fo-grade
+    container_name: planwith-planwith-fo-grade
     restart: unless-stopped
     depends_on:
       discovery:
@@ -17,7 +17,7 @@
     environment:
       SERVER_PORT: 8083
       SERVER_ADDRESS: 0.0.0.0
-      SPRING_APPLICATION_NAME: fo-grade
+      SPRING_APPLICATION_NAME: planwith-fo-grade
       # OpenAPI JSON은 Gateway /docs/<service> 가 가져감. UI는 :8000.
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
     networks:

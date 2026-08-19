@@ -1,4 +1,4 @@
-name: Deploy fo-grade
+name: Deploy planwith-fo-grade
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
         shell: cmd
 
     env:
-      IMAGE_NAME: planwith/fo-grade
+      IMAGE_NAME: planwith/planwith-fo-grade
       IMAGE_TAG: latest
       COMPOSE_FILE: C:/planwith/docker-compose.yml
       SERVICE_NAME: planwith-fo-grade
