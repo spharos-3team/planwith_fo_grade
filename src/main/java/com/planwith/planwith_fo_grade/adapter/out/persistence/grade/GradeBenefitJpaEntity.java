@@ -28,7 +28,7 @@ class GradeBenefitJpaEntity {
 	private GradeJpaEntity grade;
 
 	@Enumerated(EnumType.STRING)
-	@Column(name = "benefit_code", nullable = false, length = 30)
+	@Column(name = "benefit_code", nullable = false, length = 40)
 	private BenefitCode benefitCode;
 
 	@Column(name = "benefit_name", nullable = false, length = 100)

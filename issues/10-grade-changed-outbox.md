@@ -10,10 +10,10 @@
 
 ## 작업 상세
 
-- [ ] GradeChanged Event payload DTO 정의
-- [ ] 등급 변경 Application Service에서 Outbox INSERT 연동
-- [ ] `GradeEventType.GRADE_CHANGED` 토픽 발행 검증
-- [ ] Test 작성
+- [x] GradeChanged Event payload DTO 정의
+- [x] 등급 변경 Application Service에서 Outbox INSERT 연동
+- [x] `eventType = GradeChanged` 토픽 발행 검증
+- [x] Test 작성
 
 ## 참고사항
 

@@ -14,10 +14,10 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 
+import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventPublisher;
 import com.planwith.planwith_fo_grade.config.GradeKafkaProperties;
 import com.planwith.planwith_fo_grade.config.GradeOutboxProperties;
-import com.planwith.planwith_fo_grade.domain.event.GradeEventType;
 
 class GradeOutboxRelayTest {
 
@@ -34,13 +34,13 @@ class GradeOutboxRelayTest {
 		UUID eventUuid = UUID.randomUUID();
 		UUID memberUuid = UUID.randomUUID();
 		String payload = """
-				{"eventUuid":"%s","memberUuid":"%s","previousGrade":"TRAVELER","currentGrade":"EXPLORER","gradeLevel":4,"changedAt":"2026-08-19T06:00:00Z"}
+				{"eventUuid":"%s","memberUuid":"%s","previousGradeCode":"TRAVELER","currentGradeCode":"EXPLORER","previousGradeLevel":3,"currentGradeLevel":4,"changedAt":"2026-08-19T06:00:00Z"}
 				""".formatted(eventUuid, memberUuid).trim();
 		GradeOutboxJpaEntity outbox = new GradeOutboxJpaEntity(
 				eventUuid,
 				"GradeMember",
 				memberUuid,
-				GradeEventType.GRADE_CHANGED.name(),
+				GradeChangedEvent.EVENT_TYPE,
 				payload,
 				Instant.parse("2026-08-19T06:00:00Z")
 		);
@@ -53,5 +53,38 @@ class GradeOutboxRelayTest {
 		verify(publisher).publish("planwith.grade.changed", eventUuid.toString(), payload);
 		assertThat(outbox.publishedAt()).isNotNull();
 		assertThat(outbox.retryCount()).isZero();
+	}
+
+	@Test
+	void keepsUnpublishedAndIncrementsRetryCountWhenKafkaPublishFails() {
+		SpringDataGradeOutboxRepository repository = mock(SpringDataGradeOutboxRepository.class);
+		GradeEventPublisher publisher = mock(GradeEventPublisher.class);
+		GradeOutboxRelay relay = new GradeOutboxRelay(
+				repository,
+				publisher,
+				new GradeOutboxProperties(),
+				new GradeKafkaProperties()
+		);
+		UUID eventUuid = UUID.randomUUID();
+		UUID memberUuid = UUID.randomUUID();
+		String payload = """
+				{"eventUuid":"%s","memberUuid":"%s","previousGradeCode":"TRAVELER","currentGradeCode":"EXPLORER","previousGradeLevel":3,"currentGradeLevel":4,"changedAt":"2026-08-19T06:00:00Z"}
+				""".formatted(eventUuid, memberUuid).trim();
+		GradeOutboxJpaEntity outbox = new GradeOutboxJpaEntity(
+				eventUuid,
+				"GradeMember",
+				memberUuid,
+				GradeChangedEvent.EVENT_TYPE,
+				payload,
+				Instant.parse("2026-08-19T06:00:00Z")
+		);
+		when(repository.findUnpublished(any(Pageable.class))).thenReturn(List.of(outbox));
+		when(publisher.publish("planwith.grade.changed", eventUuid.toString(), payload))
+				.thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
+
+		relay.relayUnpublishedEvents();
+
+		assertThat(outbox.publishedAt()).isNull();
+		assertThat(outbox.retryCount()).isEqualTo(1);
 	}
 }

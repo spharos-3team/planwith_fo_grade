@@ -23,16 +23,46 @@ class GradeCriteriaCatalogTest {
 				GradeCode.ADVENTURE,
 				GradeCode.PLANWITH
 		);
-		assertThat(grades).allSatisfy(grade -> {
-			assertThat(grade.benefits()).hasSize(1);
-			assertThat(grade.benefits().get(0).benefitCode()).isEqualTo(BenefitCode.MONTHLY_FREE_TOKEN);
-		});
+		assertThat(grades).extracting(Grade::gradeName).containsExactly(
+				"🌱 새싹",
+				"🧳 잎새",
+				"✈️ 여행가",
+				"🧭 탐험가",
+				"🌏 모험가",
+				"👑 PLAN&WITH 마스터"
+		);
 		assertThat(tokenAmount(grades, GradeCode.ROOKIE)).isEqualTo("10");
 		assertThat(tokenAmount(grades, GradeCode.LEAF)).isEqualTo("20");
 		assertThat(tokenAmount(grades, GradeCode.TRAVELER)).isEqualTo("30");
 		assertThat(tokenAmount(grades, GradeCode.EXPLORER)).isEqualTo("50");
 		assertThat(tokenAmount(grades, GradeCode.ADVENTURE)).isEqualTo("70");
 		assertThat(tokenAmount(grades, GradeCode.PLANWITH)).isEqualTo("120");
+	}
+
+	@Test
+	void assignsBenefitsByUpdatedPolicy() {
+		assertThat(benefitCodes(GradeCode.ROOKIE)).containsExactly(BenefitCode.MONTHLY_FREE_TOKEN);
+		assertThat(benefitCodes(GradeCode.LEAF)).containsExactly(BenefitCode.MONTHLY_FREE_TOKEN);
+		assertThat(benefitCodes(GradeCode.TRAVELER)).containsExactly(BenefitCode.MONTHLY_FREE_TOKEN);
+		assertThat(benefitCodes(GradeCode.EXPLORER)).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY
+		);
+		assertThat(benefitCodes(GradeCode.ADVENTURE)).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.NON_MEMBER_STORY_PRIORITY
+		);
+		assertThat(benefitCodes(GradeCode.PLANWITH)).containsExactly(
+				BenefitCode.MONTHLY_FREE_TOKEN,
+				BenefitCode.PROFILE_BADGE,
+				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.NON_MEMBER_STORY_PRIORITY
+		);
+		assertThat(benefitValue(GradeCode.ADVENTURE, BenefitCode.NON_MEMBER_STORY_PRIORITY)).isEqualTo("ADVENTURE");
+		assertThat(benefitValue(GradeCode.PLANWITH, BenefitCode.NON_MEMBER_STORY_PRIORITY)).isEqualTo("PLANWITH");
 	}
 
 	@Test
@@ -86,6 +116,20 @@ class GradeCriteriaCatalogTest {
 	private static Grade grade(GradeCode gradeCode) {
 		return GradeCriteriaCatalog.initialGrades().stream()
 				.filter(candidate -> candidate.gradeCode() == gradeCode)
+				.findFirst()
+				.orElseThrow();
+	}
+
+	private static List<BenefitCode> benefitCodes(GradeCode gradeCode) {
+		return grade(gradeCode).benefits().stream()
+				.map(GradeBenefit::benefitCode)
+				.toList();
+	}
+
+	private static String benefitValue(GradeCode gradeCode, BenefitCode benefitCode) {
+		return grade(gradeCode).benefits().stream()
+				.filter(benefit -> benefit.benefitCode() == benefitCode)
+				.map(GradeBenefit::benefitValue)
 				.findFirst()
 				.orElseThrow();
 	}

@@ -12,9 +12,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
-import com.planwith.planwith_fo_grade.domain.event.GradeEventType;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -39,7 +39,7 @@ class GradeEventOutboxAdapterIntegrationTest {
 				eventUuid,
 				"Grade",
 				UUID.randomUUID().toString(),
-				GradeEventType.GRADE_CHANGED.name(),
+				GradeChangedEvent.EVENT_TYPE,
 				"{\"memberUuid\":\"member-uuid\"}"
 		);
 
@@ -48,7 +48,7 @@ class GradeEventOutboxAdapterIntegrationTest {
 
 		assertThat(repository.findAll()).singleElement().satisfies(outbox -> {
 			assertThat(outbox.eventUuid()).isEqualTo(UUID.fromString(eventUuid));
-			assertThat(outbox.eventType()).isEqualTo(GradeEventType.GRADE_CHANGED.name());
+			assertThat(outbox.eventType()).isEqualTo(GradeChangedEvent.EVENT_TYPE);
 			assertThat(outbox.payload()).contains("memberUuid");
 			assertThat(outbox.publishedAt()).isNull();
 			assertThat(outbox.retryCount()).isZero();

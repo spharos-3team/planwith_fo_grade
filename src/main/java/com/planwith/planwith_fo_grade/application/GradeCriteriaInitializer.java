@@ -1,5 +1,7 @@
 package com.planwith.planwith_fo_grade.application;
 
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -27,28 +29,48 @@ public class GradeCriteriaInitializer implements ApplicationRunner {
 	@Override
 	@Transactional
 	public void run(ApplicationArguments args) {
-		log.info("GradeCriteriaInitializer : run : 등급 기준 초기 데이터 적재 시작");
-		int savedCount = 0;
-		for (Grade grade : GradeCriteriaCatalog.initialGrades()) {
-			if (gradeCriteriaPort.findByGradeCode(grade.gradeCode()).isPresent()) {
-				log.debug(
-						"GradeCriteriaInitializer : run : 이미 존재하는 등급은 건너뜀 - gradeCode={}",
-						grade.gradeCode()
+		log.info("GradeCriteriaInitializer : run : 등급 기준 초기 데이터 동기화 시작");
+		int createdCount = 0;
+		int updatedCount = 0;
+		for (Grade catalogGrade : GradeCriteriaCatalog.initialGrades()) {
+			Optional<Grade> existing = gradeCriteriaPort.findByGradeCode(catalogGrade.gradeCode());
+			if (existing.isEmpty()) {
+				Grade saved = gradeCriteriaPort.save(catalogGrade);
+				createdCount++;
+				log.info(
+						"GradeCriteriaInitializer : run : 등급 기준 적재 완료 - gradeCode={}, gradeLevel={}",
+						saved.gradeCode(),
+						saved.gradeLevel()
 				);
 				continue;
 			}
-			Grade saved = gradeCriteriaPort.save(grade);
-			savedCount++;
+			Grade saved = gradeCriteriaPort.save(withPersistedId(existing.get(), catalogGrade));
+			updatedCount++;
 			log.info(
-					"GradeCriteriaInitializer : run : 등급 기준 적재 완료 - gradeCode={}, gradeLevel={}",
+					"GradeCriteriaInitializer : run : 등급 기준 동기화 완료 - gradeCode={}, benefitCount={}",
 					saved.gradeCode(),
-					saved.gradeLevel()
+					saved.benefits().size()
 			);
 		}
-		if (savedCount == 0) {
-			log.info("GradeCriteriaInitializer : run : 등급 기준 데이터가 이미 존재하여 적재를 생략");
-			return;
+		log.info(
+				"GradeCriteriaInitializer : run : 등급 기준 초기 데이터 동기화 완료 - createdCount={}, updatedCount={}",
+				createdCount,
+				updatedCount
+		);
+	}
+
+	private static Grade withPersistedId(Grade existing, Grade catalogGrade) {
+		if (existing.gradeId() == null) {
+			return catalogGrade;
 		}
-		log.info("GradeCriteriaInitializer : run : 등급 기준 초기 데이터 적재 완료 - savedCount={}", savedCount);
+		return Grade.reconstitute(
+				existing.gradeId(),
+				catalogGrade.gradeCode(),
+				catalogGrade.gradeName(),
+				catalogGrade.gradeLevel(),
+				catalogGrade.description(),
+				catalogGrade.conditions(),
+				catalogGrade.benefits()
+		);
 	}
 }

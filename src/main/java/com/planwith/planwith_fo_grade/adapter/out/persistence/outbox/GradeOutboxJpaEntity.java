@@ -80,8 +80,11 @@ class GradeOutboxJpaEntity {
 
 	Long outboxId() { return outboxId; }
 	UUID eventUuid() { return eventUuid; }
+	String aggregateType() { return aggregateType; }
+	UUID aggregateUuid() { return aggregateUuid; }
 	String eventType() { return eventType; }
 	String payload() { return payload; }
+	Instant occurredAt() { return occurredAt; }
 	Instant publishedAt() { return publishedAt; }
 	int retryCount() { return retryCount; }
 }

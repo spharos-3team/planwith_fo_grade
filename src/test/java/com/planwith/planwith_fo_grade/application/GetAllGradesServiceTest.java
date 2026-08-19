@@ -43,6 +43,12 @@ class GetAllGradesServiceTest {
 		assertThat(traveler.conditions()).extracting(condition -> condition.thresholdValue())
 				.containsExactly(10L, 100L, 500L);
 		assertThat(traveler.benefits().get(0).benefitCode()).isEqualTo("MONTHLY_FREE_TOKEN");
+		assertThat(grades.get(1).gradeName()).isEqualTo("🧳 잎새");
+		assertThat(grades.get(3).benefits()).extracting(benefit -> benefit.benefitCode()).containsExactly(
+				"MONTHLY_FREE_TOKEN",
+				"PROFILE_BADGE",
+				"MEMBERSHIP_PUBLIC_STORY"
+		);
 	}
 
 	private static final class InMemoryGradeCriteriaPort implements GradeCriteriaPort {

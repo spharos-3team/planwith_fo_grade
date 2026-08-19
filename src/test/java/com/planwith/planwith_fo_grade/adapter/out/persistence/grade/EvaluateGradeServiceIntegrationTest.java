@@ -69,9 +69,10 @@ class EvaluateGradeServiceIntegrationTest {
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
 		assertThat(outboxCount(memberUuid)).isEqualTo(1);
 		assertThat(outboxPayload(memberUuid)).contains(
-				"\"previousGrade\":\"ROOKIE\"",
-				"\"currentGrade\":\"EXPLORER\"",
-				"\"gradeLevel\":4"
+				"\"previousGradeCode\":\"ROOKIE\"",
+				"\"currentGradeCode\":\"EXPLORER\"",
+				"\"previousGradeLevel\":1",
+				"\"currentGradeLevel\":4"
 		);
 	}
 

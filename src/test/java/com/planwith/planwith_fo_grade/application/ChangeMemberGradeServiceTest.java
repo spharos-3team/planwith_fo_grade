@@ -17,11 +17,11 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_grade.application.command.ChangeMemberGradeCommand;
+import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
-import com.planwith.planwith_fo_grade.domain.event.GradeEventType;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -63,18 +63,48 @@ class ChangeMemberGradeServiceTest {
 		GradeOutboxMessage message = outboxPort.messages.get(0);
 		assertThat(message.aggregateType()).isEqualTo("GradeMember");
 		assertThat(message.aggregateUuid()).isEqualTo(memberUuid);
-		assertThat(message.eventType()).isEqualTo(GradeEventType.GRADE_CHANGED.name());
+		assertThat(message.eventType()).isEqualTo(GradeChangedEvent.EVENT_TYPE);
 		JsonNode payload = objectMapper.readTree(message.payload());
 		assertThat(payload.get("eventUuid").asText()).isEqualTo(message.eventUuid());
 		assertThat(payload.get("memberUuid").asText()).isEqualTo(memberUuid);
-		assertThat(payload.get("previousGrade").asText()).isEqualTo(GradeCode.TRAVELER.name());
-		assertThat(payload.get("currentGrade").asText()).isEqualTo(GradeCode.EXPLORER.name());
-		assertThat(payload.get("gradeLevel").asInt()).isEqualTo(
+		assertThat(payload.get("previousGradeCode").asText()).isEqualTo(GradeCode.TRAVELER.name());
+		assertThat(payload.get("currentGradeCode").asText()).isEqualTo(GradeCode.EXPLORER.name());
+		assertThat(payload.get("previousGradeLevel").asInt()).isEqualTo(
+				criteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeLevel()
+		);
+		assertThat(payload.get("currentGradeLevel").asInt()).isEqualTo(
 				criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeLevel()
 		);
 		assertThat(payload.get("changedAt").asText()).isNotBlank();
 		assertThat(payload.has("eventType")).isFalse();
+		assertThat(payload.has("previousGrade")).isFalse();
 		assertThat(payload.has("fromGradeCode")).isFalse();
+	}
+
+	@Test
+	void propagatesOutboxInsertFailure() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
+		memberPort.save(GradeMember.assign(
+				criteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		ChangeMemberGradeService service = new ChangeMemberGradeService(
+				memberPort,
+				criteriaPort,
+				message -> {
+					throw new IllegalStateException("Outbox INSERT 실패");
+				},
+				objectMapper
+		);
+
+		assertThatThrownBy(() -> service.change(new ChangeMemberGradeCommand(
+				memberUuid,
+				GradeCode.TRAVELER.name(),
+				GradeCode.EXPLORER.name()
+		))).isInstanceOf(IllegalStateException.class)
+				.hasMessage("Outbox INSERT 실패");
 	}
 
 	@Test

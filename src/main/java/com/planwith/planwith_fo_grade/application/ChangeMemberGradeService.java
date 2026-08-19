@@ -19,7 +19,6 @@ import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
-import com.planwith.planwith_fo_grade.domain.event.GradeEventType;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -87,20 +86,22 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 				eventUuid,
 				AGGREGATE_TYPE,
 				saved.memberUuid().toString(),
-				GradeEventType.GRADE_CHANGED.name(),
+				GradeChangedEvent.EVENT_TYPE,
 				toPayload(GradeChangedEvent.of(
 						eventUuid,
 						saved.memberUuid().toString(),
 						currentGrade.gradeCode().name(),
 						targetGrade.gradeCode().name(),
+						currentGrade.gradeLevel(),
 						targetGrade.gradeLevel(),
 						changedAt.toInstant(ZoneOffset.UTC).toString()
 				))
 		));
 
 		log.info(
-				"ChangeMemberGradeService : change : 등급 변경 및 Outbox 저장 완료 - memberUuid={}, fromGradeCode={}, toGradeCode={}",
+				"ChangeMemberGradeService : change : 등급 변경 및 GradeChanged Outbox 저장 완료 - memberUuid={}, eventUuid={}, fromGradeCode={}, toGradeCode={}",
 				saved.memberUuid(),
+				eventUuid,
 				currentGrade.gradeCode(),
 				targetGrade.gradeCode()
 		);

@@ -1,26 +1,26 @@
 package com.planwith.planwith_fo_grade.adapter.out.persistence.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_grade.application.GradeCriteriaInitializer;
 import com.planwith.planwith_fo_grade.application.command.ChangeMemberGradeCommand;
-import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.in.ChangeMemberGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
 import com.planwith.planwith_fo_grade.domain.model.GradeMember;
@@ -28,8 +28,7 @@ import com.planwith.planwith_fo_grade.domain.model.vo.MemberUuid;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional
-class ChangeMemberGradeServiceIntegrationTest {
+class ChangeMemberGradeOutboxRollbackIntegrationTest {
 
 	@Autowired
 	private ChangeMemberGradeUseCase changeMemberGradeUseCase;
@@ -43,16 +42,8 @@ class ChangeMemberGradeServiceIntegrationTest {
 	@Autowired
 	private SpringDataGradeOutboxRepository repository;
 
-	@Autowired
-	private ObjectMapper objectMapper;
-
-	@BeforeEach
-	void clearOutbox() {
-		repository.deleteAll();
-	}
-
 	@Test
-	void updatesTravelerToExplorerAndStoresUnpublishedOutbox() throws Exception {
+	void rollsBackGradeMemberWhenOutboxInsertIsFollowedByFailure() {
 		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
 		String memberUuid = UUID.randomUUID().toString();
 		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
@@ -62,33 +53,36 @@ class ChangeMemberGradeServiceIntegrationTest {
 				assignedAt
 		));
 
-		changeMemberGradeUseCase.change(new ChangeMemberGradeCommand(
+		assertThatThrownBy(() -> changeMemberGradeUseCase.change(new ChangeMemberGradeCommand(
 				memberUuid,
 				GradeCode.TRAVELER.name(),
 				GradeCode.EXPLORER.name()
-		));
+		))).isInstanceOf(IllegalStateException.class)
+				.hasMessage("Outbox INSERT 이후 강제 실패");
 
 		GradeMember saved = gradeMemberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
 		assertThat(saved.gradeId()).isEqualTo(
-				gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId()
+				gradeCriteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeId()
 		);
-		assertThat(saved.lastEvaluatedAt()).isNotNull();
-		assertThat(repository.findUnpublished(PageRequest.of(0, 10))).singleElement().satisfies(outbox -> {
-			assertThat(outbox.eventType()).isEqualTo(GradeChangedEvent.EVENT_TYPE);
-			assertThat(outbox.publishedAt()).isNull();
-			assertThat(outbox.occurredAt()).isNotNull();
-			assertThat(outbox.retryCount()).isZero();
-			JsonNode payload = objectMapper.readTree(outbox.payload());
-			assertThat(payload.get("memberUuid").asText()).isEqualTo(memberUuid);
-			assertThat(payload.get("previousGradeCode").asText()).isEqualTo(GradeCode.TRAVELER.name());
-			assertThat(payload.get("currentGradeCode").asText()).isEqualTo(GradeCode.EXPLORER.name());
-			assertThat(payload.get("previousGradeLevel").asInt()).isEqualTo(
-					gradeCriteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeLevel()
-			);
-			assertThat(payload.get("currentGradeLevel").asInt()).isEqualTo(
-					gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeLevel()
-			);
-			assertThat(payload.get("changedAt").asText()).isNotBlank();
-		});
+		assertThat(repository.findAll()).noneMatch(outbox ->
+				UUID.fromString(memberUuid).equals(outbox.aggregateUuid())
+		);
+		assertThat(repository.findUnpublished(PageRequest.of(0, 10))).noneMatch(outbox ->
+				UUID.fromString(memberUuid).equals(outbox.aggregateUuid())
+		);
+	}
+
+	@TestConfiguration
+	static class FailingOutboxAfterInsertConfig {
+
+		@Bean
+		@Primary
+		GradeEventOutboxPort failingOutboxAfterInsert(SpringDataGradeOutboxRepository repository) {
+			GradeEventOutboxAdapter delegate = new GradeEventOutboxAdapter(repository);
+			return message -> {
+				delegate.save(message);
+				throw new IllegalStateException("Outbox INSERT 이후 강제 실패");
+			};
+		}
 	}
 }

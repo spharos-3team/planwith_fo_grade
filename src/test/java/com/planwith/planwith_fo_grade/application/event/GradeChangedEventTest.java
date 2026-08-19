@@ -13,15 +13,18 @@ class GradeChangedEventTest {
 				"member-uuid",
 				"TRAVELER",
 				"EXPLORER",
+				3,
 				4,
 				"2026-08-19T06:00:00Z"
 		);
 
 		assertThat(event.eventUuid()).isEqualTo("event-uuid");
 		assertThat(event.memberUuid()).isEqualTo("member-uuid");
-		assertThat(event.previousGrade()).isEqualTo("TRAVELER");
-		assertThat(event.currentGrade()).isEqualTo("EXPLORER");
-		assertThat(event.gradeLevel()).isEqualTo(4);
+		assertThat(event.previousGradeCode()).isEqualTo("TRAVELER");
+		assertThat(event.currentGradeCode()).isEqualTo("EXPLORER");
+		assertThat(event.previousGradeLevel()).isEqualTo(3);
+		assertThat(event.currentGradeLevel()).isEqualTo(4);
 		assertThat(event.changedAt()).isEqualTo("2026-08-19T06:00:00Z");
+		assertThat(GradeChangedEvent.EVENT_TYPE).isEqualTo("GradeChanged");
 	}
 }
