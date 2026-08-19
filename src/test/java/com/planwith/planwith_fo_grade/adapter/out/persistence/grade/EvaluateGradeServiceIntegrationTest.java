@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.planwith.planwith_fo_grade.application.GradeCriteriaInitializer;
 import com.planwith.planwith_fo_grade.application.command.AssignInitialGradeCommand;
 import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
+import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.in.AssignInitialGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
@@ -49,6 +50,62 @@ class EvaluateGradeServiceIntegrationTest {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@Test
+	void promotesRookieToLeafWhenLeafThresholdsAreMet() {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		assignInitialGradeUseCase.assign(new AssignInitialGradeCommand(memberUuid, assignedAt));
+		saveMetric(memberUuid, MemberMetricType.STORY_COUNT, 3L, "story-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 10L, "follow-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 30L, "like-service", assignedAt);
+
+		evaluateGradeUseCase.evaluate(new EvaluateGradeCommand(memberUuid));
+
+		GradeMember saved = gradeMemberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
+		assertThat(saved.gradeId()).isEqualTo(
+				gradeCriteriaPort.findByGradeCode(GradeCode.LEAF).orElseThrow().gradeId()
+		);
+		assertThat(saved.lastEvaluatedAt()).isNotNull();
+		assertThat(outboxCount(memberUuid)).isEqualTo(1);
+		assertThat(outboxPayload(memberUuid)).contains("\"currentGradeCode\":\"LEAF\"");
+	}
+
+	@Test
+	void promotesRookieToExplorerWhenExplorerThresholdsAreExactlyMet() {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		assignInitialGradeUseCase.assign(new AssignInitialGradeCommand(memberUuid, assignedAt));
+		saveMetric(memberUuid, MemberMetricType.STORY_COUNT, 30L, "story-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 1_000L, "follow-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 5_000L, "like-service", assignedAt);
+
+		evaluateGradeUseCase.evaluate(new EvaluateGradeCommand(memberUuid));
+
+		assertThat(gradeMemberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().gradeId())
+				.isEqualTo(gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId());
+		assertThat(outboxPayload(memberUuid)).contains("\"currentGradeCode\":\"EXPLORER\"");
+	}
+
+	@Test
+	void doesNotPromoteToExplorerWhenLikeCountIsOneShort() {
+		new GradeCriteriaInitializer(gradeCriteriaPort).run(new DefaultApplicationArguments());
+		String memberUuid = UUID.randomUUID().toString();
+		LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
+		assignInitialGradeUseCase.assign(new AssignInitialGradeCommand(memberUuid, assignedAt));
+		saveMetric(memberUuid, MemberMetricType.STORY_COUNT, 30L, "story-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 1_000L, "follow-service", assignedAt);
+		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 4_999L, "like-service", assignedAt);
+
+		evaluateGradeUseCase.evaluate(new EvaluateGradeCommand(memberUuid));
+
+		assertThat(gradeMemberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().gradeId())
+				.isEqualTo(gradeCriteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeId());
+		assertThat(outboxPayload(memberUuid)).contains("\"currentGradeCode\":\"TRAVELER\"");
+		assertThat(outboxPayload(memberUuid)).doesNotContain("\"currentGradeCode\":\"EXPLORER\"");
+	}
 
 	@Test
 	void promotesRookieToExplorerWhenAllExplorerThresholdsAreMet() {
@@ -106,18 +163,20 @@ class EvaluateGradeServiceIntegrationTest {
 
 	private long outboxCount(String memberUuid) {
 		Long count = jdbcTemplate.queryForObject(
-				"select count(*) from grade_outbox where aggregate_uuid = ?",
+				"select count(*) from grade_outbox where aggregate_uuid = ? and event_type = ?",
 				Long.class,
-				memberUuid
+				memberUuid,
+				GradeChangedEvent.EVENT_TYPE
 		);
 		return count == null ? 0L : count;
 	}
 
 	private String outboxPayload(String memberUuid) {
 		return jdbcTemplate.queryForObject(
-				"select payload from grade_outbox where aggregate_uuid = ?",
+				"select payload from grade_outbox where aggregate_uuid = ? and event_type = ?",
 				String.class,
-				memberUuid
+				memberUuid,
+				GradeChangedEvent.EVENT_TYPE
 		);
 	}
 
