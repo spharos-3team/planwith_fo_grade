@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_grade.application.GradeCriteriaInitializer;
 import com.planwith.planwith_fo_grade.application.command.ChangeMemberGradeCommand;
-import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.in.ChangeMemberGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
@@ -78,10 +77,13 @@ class ChangeMemberGradeServiceIntegrationTest {
 			assertThat(outbox.eventType()).isEqualTo(GradeEventType.GRADE_CHANGED.name());
 			assertThat(outbox.publishedAt()).isNull();
 			JsonNode payload = objectMapper.readTree(outbox.payload());
-			assertThat(payload.get("eventType").asText()).isEqualTo(GradeChangedEvent.EVENT_TYPE);
 			assertThat(payload.get("memberUuid").asText()).isEqualTo(memberUuid);
-			assertThat(payload.get("fromGradeCode").asText()).isEqualTo(GradeCode.TRAVELER.name());
-			assertThat(payload.get("toGradeCode").asText()).isEqualTo(GradeCode.EXPLORER.name());
+			assertThat(payload.get("previousGrade").asText()).isEqualTo(GradeCode.TRAVELER.name());
+			assertThat(payload.get("currentGrade").asText()).isEqualTo(GradeCode.EXPLORER.name());
+			assertThat(payload.get("gradeLevel").asInt()).isEqualTo(
+					gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeLevel()
+			);
+			assertThat(payload.get("changedAt").asText()).isNotBlank();
 		});
 	}
 }

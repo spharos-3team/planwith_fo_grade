@@ -93,6 +93,7 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 						saved.memberUuid().toString(),
 						currentGrade.gradeCode().name(),
 						targetGrade.gradeCode().name(),
+						targetGrade.gradeLevel(),
 						changedAt.toInstant(ZoneOffset.UTC).toString()
 				))
 		));
