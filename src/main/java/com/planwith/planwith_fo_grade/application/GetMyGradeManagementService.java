@@ -15,6 +15,7 @@ import com.planwith.planwith_fo_grade.application.port.in.GetMyGradeManagementQu
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
+import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeBenefitView;
 import com.planwith.planwith_fo_grade.application.query.GradeConditionView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
@@ -76,7 +77,8 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 				toCurrentGradeView(currentGrade),
 				toCurrentMetricsView(metricValues),
 				nextGrade.map(this::toNextGradeView).orElse(null),
-				toProgressView(currentGrade, nextGrade.orElse(null), metricValues)
+				toProgressView(currentGrade, nextGrade.orElse(null), metricValues),
+				CurrentBenefitSummaryView.from(currentGrade)
 		);
 		log.info(
 				"GetMyGradeManagementService : get : 내 등급 관리 조회 완료 - memberUuid={}, currentGradeCode={}, nextGradeCode={}",

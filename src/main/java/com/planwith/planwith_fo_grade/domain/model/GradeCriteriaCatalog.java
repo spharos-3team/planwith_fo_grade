@@ -2,6 +2,8 @@ package com.planwith.planwith_fo_grade.domain.model;
 
 import java.util.List;
 
+import com.planwith.planwith_fo_grade.domain.service.GradeBenefitSummary;
+
 /**
  * 등급 기준 초기 정책 정의.
  * 평가 시에는 이 클래스의 GradeCode 분기가 아니라 DB에 적재된
@@ -13,6 +15,7 @@ public final class GradeCriteriaCatalog {
 	private static final String MONTHLY_TOKEN_BENEFIT_NAME = "월간 무료 토큰";
 	private static final String PROFILE_BADGE_NAME = "프로필 배지";
 	private static final String MEMBERSHIP_PUBLIC_STORY_NAME = "멤버십 회원공개 스토리 작성";
+	private static final String MEMBERSHIP_ACCESS_NAME = "멤버십 기능 사용";
 	private static final String PROFILE_SPECIAL_BORDER_NAME = "프로필 특별 테두리";
 	private static final String NON_MEMBER_STORY_PRIORITY_NAME = "비회원 스토리 우선 노출";
 
@@ -67,10 +70,12 @@ public final class GradeCriteriaCatalog {
 								monthlyTokenBenefit("70", 1),
 								profileBadge(2),
 								profileSpecialBorder(3),
+								membershipPublicStory(4),
+								membershipAccess(5),
 								nonMemberStoryPriority(
-										"ADVENTURE",
+										GradeBenefitSummary.STORY_PRIORITY_ADVENTURE,
 										"비회원이 스토리 진입 시 스토리 우선 노출 (플랜 마스터와 분리)",
-										4
+										6
 								)
 						)
 				),
@@ -84,10 +89,12 @@ public final class GradeCriteriaCatalog {
 								monthlyTokenBenefit("120", 1),
 								profileBadge(2),
 								profileSpecialBorder(3),
+								membershipPublicStory(4),
+								membershipAccess(5),
 								nonMemberStoryPriority(
-										"PLANWITH",
-										"비회원이 스토리 진입 시 스토리 우선 노출 (모험가와 분리)",
-										4
+										GradeBenefitSummary.STORY_PRIORITY_HIGHEST,
+										"비회원이 스토리 진입 시 스토리 우선 노출 (모험가와 분리, 최상위)",
+										6
 								)
 						)
 				)
@@ -169,6 +176,17 @@ public final class GradeCriteriaCatalog {
 				MEMBERSHIP_PUBLIC_STORY_NAME,
 				"true",
 				"멤버십 회원공개 스토리 작성이 가능하다",
+				sortOrder
+		);
+	}
+
+	private static GradeBenefit membershipAccess(int sortOrder) {
+		return GradeBenefit.create(
+				UNSAVED_GRADE_ID,
+				BenefitCode.MEMBERSHIP_ACCESS,
+				MEMBERSHIP_ACCESS_NAME,
+				"true",
+				"멤버십 기능 사용 가능 등급이다. 가입자 목록, 금액 설정, 수익 신청은 Membership Service가 수행한다",
 				sortOrder
 		);
 	}

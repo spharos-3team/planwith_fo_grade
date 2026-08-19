@@ -53,16 +53,20 @@ class GradeCriteriaCatalogTest {
 				BenefitCode.MONTHLY_FREE_TOKEN,
 				BenefitCode.PROFILE_BADGE,
 				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY,
+				BenefitCode.MEMBERSHIP_ACCESS,
 				BenefitCode.NON_MEMBER_STORY_PRIORITY
 		);
 		assertThat(benefitCodes(GradeCode.PLANWITH)).containsExactly(
 				BenefitCode.MONTHLY_FREE_TOKEN,
 				BenefitCode.PROFILE_BADGE,
 				BenefitCode.PROFILE_SPECIAL_BORDER,
+				BenefitCode.MEMBERSHIP_PUBLIC_STORY,
+				BenefitCode.MEMBERSHIP_ACCESS,
 				BenefitCode.NON_MEMBER_STORY_PRIORITY
 		);
 		assertThat(benefitValue(GradeCode.ADVENTURE, BenefitCode.NON_MEMBER_STORY_PRIORITY)).isEqualTo("ADVENTURE");
-		assertThat(benefitValue(GradeCode.PLANWITH, BenefitCode.NON_MEMBER_STORY_PRIORITY)).isEqualTo("PLANWITH");
+		assertThat(benefitValue(GradeCode.PLANWITH, BenefitCode.NON_MEMBER_STORY_PRIORITY)).isEqualTo("HIGHEST");
 	}
 
 	@Test

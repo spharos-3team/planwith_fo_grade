@@ -6,7 +6,8 @@ public record GradeManagementResponse(
 		CurrentGradeResponse currentGrade,
 		CurrentMetricsResponse currentMetrics,
 		NextGradeResponse nextGrade,
-		ProgressResponse progress
+		ProgressResponse progress,
+		CurrentBenefitSummaryResponse currentBenefits
 ) {
 
 	public record CurrentGradeResponse(

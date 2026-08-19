@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.ApiResponse;
+import com.planwith.planwith_fo_grade.adapter.in.web.dto.CurrentBenefitSummaryResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeBenefitResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeConditionResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse;
@@ -22,7 +23,9 @@ import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeManagementResponse.ProgressResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.GradeResponse;
 import com.planwith.planwith_fo_grade.application.port.in.GetAllGradesQueryUseCase;
+import com.planwith.planwith_fo_grade.application.port.in.GetCurrentBenefitsQueryUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.GetMyGradeManagementQueryUseCase;
+import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeBenefitView;
 import com.planwith.planwith_fo_grade.application.query.GradeCatalogView;
 import com.planwith.planwith_fo_grade.application.query.GradeConditionView;
@@ -37,13 +40,16 @@ public class GradeQueryController {
 
 	private final GetAllGradesQueryUseCase getAllGradesQueryUseCase;
 	private final GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase;
+	private final GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase;
 
 	public GradeQueryController(
 			GetAllGradesQueryUseCase getAllGradesQueryUseCase,
-			GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase
+			GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase,
+			GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase
 	) {
 		this.getAllGradesQueryUseCase = getAllGradesQueryUseCase;
 		this.getMyGradeManagementQueryUseCase = getMyGradeManagementQueryUseCase;
+		this.getCurrentBenefitsQueryUseCase = getCurrentBenefitsQueryUseCase;
 	}
 
 	// 전체 등급표 조회
@@ -65,6 +71,19 @@ public class GradeQueryController {
 		log.info("GradeQueryController : GET getMyGradeManagement : 내 등급 관리 조회 요청 - memberUuid={}", memberUuid);
 		GradeManagementResponse response = toManagementResponse(getMyGradeManagementQueryUseCase.get(memberUuid.toString()));
 		log.info("GradeQueryController : GET getMyGradeManagement : 내 등급 관리 조회 완료 - memberUuid={}", memberUuid);
+		return ResponseEntity.ok(ApiResponse.success(response));
+	}
+
+	// 현재 혜택 조회
+	@GetMapping("/grades/me/benefits")
+	public ResponseEntity<ApiResponse<CurrentBenefitSummaryResponse>> getMyCurrentBenefits(
+			@RequestHeader("X-Member-UUID") UUID memberUuid
+	) {
+		log.info("GradeQueryController : GET getMyCurrentBenefits : 현재 혜택 조회 요청 - memberUuid={}", memberUuid);
+		CurrentBenefitSummaryResponse response = toBenefitSummaryResponse(
+				getCurrentBenefitsQueryUseCase.get(memberUuid.toString())
+		);
+		log.info("GradeQueryController : GET getMyCurrentBenefits : 현재 혜택 조회 완료 - memberUuid={}", memberUuid);
 		return ResponseEntity.ok(ApiResponse.success(response));
 	}
 
@@ -100,7 +119,22 @@ public class GradeQueryController {
 						toMetricProgressResponse(view.progress().story()),
 						toMetricProgressResponse(view.progress().follower()),
 						toMetricProgressResponse(view.progress().receivedLike())
-				)
+				),
+				toBenefitSummaryResponse(view.currentBenefits())
+		);
+	}
+
+	private static CurrentBenefitSummaryResponse toBenefitSummaryResponse(CurrentBenefitSummaryView view) {
+		return new CurrentBenefitSummaryResponse(
+				view.gradeCode(),
+				view.gradeName(),
+				view.gradeLevel(),
+				view.monthlyTokenAmount(),
+				view.profileBadge(),
+				view.profileSpecialBorder(),
+				view.membershipPublicStory(),
+				view.membershipAccess(),
+				view.storyPriorityExposure()
 		);
 	}
 
