@@ -82,9 +82,48 @@ class ChangeMemberGradeServiceTest {
 				criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeLevel()
 		);
 		assertThat(payload.get("changedAt").asText()).isNotBlank();
+		assertThat(payload.get("currentBenefits").get("monthlyTokenAmount").asInt()).isEqualTo(50);
+		assertThat(payload.get("currentBenefits").get("profileBadge").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("profileSpecialBorder").asBoolean()).isFalse();
+		assertThat(payload.get("currentBenefits").get("membershipPublicStory").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("membershipAccess").asBoolean()).isFalse();
+		assertThat(payload.get("currentBenefits").get("storyPriorityExposure").isNull()).isTrue();
 		assertThat(payload.has("eventType")).isFalse();
 		assertThat(payload.has("previousGrade")).isFalse();
 		assertThat(payload.has("fromGradeCode")).isFalse();
+		assertThat(payload.has("applyBadge")).isFalse();
+		assertThat(payload.has("applyBorder")).isFalse();
+	}
+
+	@Test
+	void publishesAdventureBenefitEligibilityForDownstreamServices() throws Exception {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
+		memberPort.save(GradeMember.assign(
+				criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
+		ChangeMemberGradeService service = new ChangeMemberGradeService(
+				memberPort, criteriaPort, outboxPort, new InMemoryGradeQueryCacheAdapter(), objectMapper
+		);
+
+		service.change(new ChangeMemberGradeCommand(
+				memberUuid,
+				GradeCode.EXPLORER.name(),
+				GradeCode.ADVENTURE.name()
+		));
+
+		JsonNode payload = objectMapper.readTree(outboxPort.messages.get(0).payload());
+		assertThat(payload.get("previousGradeCode").asText()).isEqualTo("EXPLORER");
+		assertThat(payload.get("currentGradeCode").asText()).isEqualTo("ADVENTURE");
+		assertThat(payload.get("currentBenefits").get("monthlyTokenAmount").asInt()).isEqualTo(70);
+		assertThat(payload.get("currentBenefits").get("profileBadge").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("profileSpecialBorder").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("membershipPublicStory").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("membershipAccess").asBoolean()).isTrue();
+		assertThat(payload.get("currentBenefits").get("storyPriorityExposure").asText()).isEqualTo("ADVENTURE");
 	}
 
 	@Test

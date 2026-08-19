@@ -89,6 +89,11 @@ class ChangeMemberGradeServiceIntegrationTest {
 					gradeCriteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeLevel()
 			);
 			assertThat(payload.get("changedAt").asText()).isNotBlank();
+			assertThat(payload.get("currentBenefits").get("monthlyTokenAmount").asInt()).isEqualTo(50);
+			assertThat(payload.get("currentBenefits").get("profileBadge").asBoolean()).isTrue();
+			assertThat(payload.get("currentBenefits").get("membershipPublicStory").asBoolean()).isTrue();
+			assertThat(payload.get("currentBenefits").get("membershipAccess").asBoolean()).isFalse();
+			assertThat(payload.has("applyBadge")).isFalse();
 		});
 	}
 }

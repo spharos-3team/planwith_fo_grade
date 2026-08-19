@@ -60,7 +60,11 @@ public class GradeOutboxRelay {
 
 	private void publish(GradeOutboxJpaEntity outbox) {
 		try {
-			publisher.publish(topicFor(outbox.eventType()), outbox.eventUuid().toString(), outbox.payload())
+			publisher.publish(
+							topicFor(outbox.eventType()),
+							outbox.aggregateUuid().toString(),
+							outbox.payload()
+					)
 					.get(sendTimeoutMillis(), TimeUnit.MILLISECONDS);
 			outbox.markPublished(Instant.now());
 			log.info("GradeOutboxRelay : publish : 등급 Outbox 발행 완료 - eventUuid={}, eventType={}",

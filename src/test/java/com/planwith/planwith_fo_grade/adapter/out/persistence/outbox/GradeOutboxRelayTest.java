@@ -46,12 +46,12 @@ class GradeOutboxRelayTest {
 				Instant.parse("2026-08-19T06:00:00Z")
 		);
 		when(repository.findUnpublished(any(Pageable.class))).thenReturn(List.of(outbox));
-		when(publisher.publish("planwith.grade.changed", eventUuid.toString(), payload))
+		when(publisher.publish("planwith.grade.changed", memberUuid.toString(), payload))
 				.thenReturn(CompletableFuture.completedFuture(null));
 
 		relay.relayUnpublishedEvents();
 
-		verify(publisher).publish("planwith.grade.changed", eventUuid.toString(), payload);
+		verify(publisher).publish("planwith.grade.changed", memberUuid.toString(), payload);
 		assertThat(outbox.publishedAt()).isNotNull();
 		assertThat(outbox.retryCount()).isZero();
 	}
@@ -80,7 +80,7 @@ class GradeOutboxRelayTest {
 				Instant.parse("2026-08-19T06:00:00Z")
 		);
 		when(repository.findUnpublished(any(Pageable.class))).thenReturn(List.of(outbox));
-		when(publisher.publish("planwith.grade.changed", eventUuid.toString(), payload))
+		when(publisher.publish("planwith.grade.changed", memberUuid.toString(), payload))
 				.thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
 
 		relay.relayUnpublishedEvents();
@@ -113,12 +113,12 @@ class GradeOutboxRelayTest {
 				Instant.parse("2026-08-19T06:00:00Z")
 		);
 		when(repository.findUnpublished(any(Pageable.class))).thenReturn(List.of(outbox));
-		when(publisher.publish("planwith.grade.reward-granted", eventUuid.toString(), payload))
+		when(publisher.publish("planwith.grade.reward-granted", memberUuid.toString(), payload))
 				.thenReturn(CompletableFuture.completedFuture(null));
 
 		relay.relayUnpublishedEvents();
 
-		verify(publisher).publish("planwith.grade.reward-granted", eventUuid.toString(), payload);
+		verify(publisher).publish("planwith.grade.reward-granted", memberUuid.toString(), payload);
 		assertThat(outbox.publishedAt()).isNotNull();
 		assertThat(outbox.retryCount()).isZero();
 	}

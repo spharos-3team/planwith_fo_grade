@@ -25,6 +25,7 @@ import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
 import com.planwith.planwith_fo_grade.domain.model.GradeMember;
 import com.planwith.planwith_fo_grade.domain.model.vo.MemberUuid;
+import com.planwith.planwith_fo_grade.domain.service.GradeBenefitSummary;
 
 @Service
 public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
@@ -98,7 +99,8 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 						targetGrade.gradeCode().name(),
 						currentGrade.gradeLevel(),
 						targetGrade.gradeLevel(),
-						changedAt.toInstant(ZoneOffset.UTC).toString()
+						changedAt.toInstant(ZoneOffset.UTC).toString(),
+						GradeChangedEvent.CurrentBenefits.from(GradeBenefitSummary.from(targetGrade.benefits()))
 				))
 		));
 
