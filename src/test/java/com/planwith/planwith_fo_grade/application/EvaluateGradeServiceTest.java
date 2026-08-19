@@ -14,9 +14,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -36,16 +39,18 @@ class EvaluateGradeServiceTest {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
 		InMemoryGradeMemberPort memberPort = assignedRookie(criteriaPort);
 		InMemoryMemberGradeMetricPort metricPort = new InMemoryMemberGradeMetricPort();
+		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
 		metricPort.save(metric(MemberMetricType.STORY_COUNT, 35L, "story-service"));
 		metricPort.save(metric(MemberMetricType.FOLLOWER_COUNT, 1_500L, "follow-service"));
 		metricPort.save(metric(MemberMetricType.RECEIVED_LIKE_COUNT, 6_200L, "like-service"));
-		EvaluateGradeService service = new EvaluateGradeService(memberPort, criteriaPort, metricPort);
+		EvaluateGradeService service = service(memberPort, criteriaPort, metricPort, outboxPort);
 
 		service.evaluate(new EvaluateGradeCommand(memberUuid));
 
 		GradeMember saved = memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
 		assertThat(saved.gradeId()).isEqualTo(criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId());
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
+		assertThat(outboxPort.messages).hasSize(1);
 	}
 
 	@Test
@@ -55,22 +60,25 @@ class EvaluateGradeServiceTest {
 		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
 		memberPort.save(GradeMember.assign(explorer.gradeId(), MemberUuid.from(memberUuid), assignedAt));
 		InMemoryMemberGradeMetricPort metricPort = new InMemoryMemberGradeMetricPort();
-		EvaluateGradeService service = new EvaluateGradeService(memberPort, criteriaPort, metricPort);
+		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
+		EvaluateGradeService service = service(memberPort, criteriaPort, metricPort, outboxPort);
 
 		service.evaluate(new EvaluateGradeCommand(memberUuid));
 
 		GradeMember saved = memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
 		assertThat(saved.gradeId()).isEqualTo(explorer.gradeId());
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
+		assertThat(outboxPort.messages).isEmpty();
 	}
 
 	@Test
 	void skipsEvaluationWhenMemberGradeIsMissing() {
 		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
-		EvaluateGradeService service = new EvaluateGradeService(
+		EvaluateGradeService service = service(
 				memberPort,
 				InMemoryGradeCriteriaPort.withCatalog(),
-				new InMemoryMemberGradeMetricPort()
+				new InMemoryMemberGradeMetricPort(),
+				new InMemoryGradeEventOutboxPort()
 		);
 
 		service.evaluate(new EvaluateGradeCommand(memberUuid));
@@ -84,10 +92,11 @@ class EvaluateGradeServiceTest {
 		InMemoryGradeMemberPort memberPort = assignedRookie(criteriaPort);
 		memberPort.save(memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().suspend());
 		int saveCountAfterSuspend = memberPort.saveCount;
-		EvaluateGradeService service = new EvaluateGradeService(
+		EvaluateGradeService service = service(
 				memberPort,
 				criteriaPort,
-				new InMemoryMemberGradeMetricPort()
+				new InMemoryMemberGradeMetricPort(),
+				new InMemoryGradeEventOutboxPort()
 		);
 
 		service.evaluate(new EvaluateGradeCommand(memberUuid));
@@ -106,7 +115,7 @@ class EvaluateGradeServiceTest {
 		metricPort.save(metric(MemberMetricType.FOLLOWER_COUNT, 1_500L, "follow-service"));
 		metricPort.save(metric(MemberMetricType.RECEIVED_LIKE_COUNT, 6_200L, "like-service"));
 		metricPort.save(metric(MemberMetricType.POST_COUNT, 0L, "story-service"));
-		EvaluateGradeService service = new EvaluateGradeService(memberPort, criteriaPort, metricPort);
+		EvaluateGradeService service = service(memberPort, criteriaPort, metricPort, new InMemoryGradeEventOutboxPort());
 
 		service.evaluate(new EvaluateGradeCommand(memberUuid));
 
@@ -122,6 +131,20 @@ class EvaluateGradeServiceTest {
 				assignedAt
 		));
 		return memberPort;
+	}
+
+	private EvaluateGradeService service(
+			InMemoryGradeMemberPort memberPort,
+			InMemoryGradeCriteriaPort criteriaPort,
+			InMemoryMemberGradeMetricPort metricPort,
+			InMemoryGradeEventOutboxPort outboxPort
+	) {
+		return new EvaluateGradeService(
+				memberPort,
+				criteriaPort,
+				metricPort,
+				new ChangeMemberGradeService(memberPort, criteriaPort, outboxPort, new ObjectMapper())
+		);
 	}
 
 	private MemberGradeMetric metric(MemberMetricType metricType, long currentValue, String sourceService) {
@@ -237,6 +260,16 @@ class EvaluateGradeServiceTest {
 
 		private static String key(MemberUuid memberUuid, MemberMetricType metricType) {
 			return memberUuid + ":" + metricType;
+		}
+	}
+
+	private static final class InMemoryGradeEventOutboxPort implements GradeEventOutboxPort {
+
+		private final List<GradeOutboxMessage> messages = new ArrayList<>();
+
+		@Override
+		public void save(GradeOutboxMessage message) {
+			messages.add(message);
 		}
 	}
 }
