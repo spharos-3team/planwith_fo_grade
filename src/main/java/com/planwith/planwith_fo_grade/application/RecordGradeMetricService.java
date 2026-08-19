@@ -15,6 +15,7 @@ import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
 import com.planwith.planwith_fo_grade.application.command.RecordGradeMetricCommand;
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.RecordGradeMetricUseCase;
+import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
 import com.planwith.planwith_fo_grade.application.port.out.ProcessedGradeEventPort;
 import com.planwith.planwith_fo_grade.domain.model.MemberGradeMetric;
@@ -29,15 +30,18 @@ public class RecordGradeMetricService implements RecordGradeMetricUseCase {
 
 	private final MemberGradeMetricPort memberGradeMetricPort;
 	private final ProcessedGradeEventPort processedGradeEventPort;
+	private final GradeQueryCachePort gradeQueryCachePort;
 	private final ObjectProvider<EvaluateGradeUseCase> evaluateGradeUseCase;
 
 	public RecordGradeMetricService(
 			MemberGradeMetricPort memberGradeMetricPort,
 			ProcessedGradeEventPort processedGradeEventPort,
+			GradeQueryCachePort gradeQueryCachePort,
 			ObjectProvider<EvaluateGradeUseCase> evaluateGradeUseCase
 	) {
 		this.memberGradeMetricPort = memberGradeMetricPort;
 		this.processedGradeEventPort = processedGradeEventPort;
+		this.gradeQueryCachePort = gradeQueryCachePort;
 		this.evaluateGradeUseCase = evaluateGradeUseCase;
 	}
 
@@ -105,6 +109,7 @@ public class RecordGradeMetricService implements RecordGradeMetricUseCase {
 				saved.metricType(),
 				saved.currentValue()
 		);
+		gradeQueryCachePort.evict(memberUuid.toString());
 		triggerGradeEvaluation(memberUuid);
 	}
 

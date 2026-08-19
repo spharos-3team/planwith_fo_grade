@@ -15,11 +15,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 
+import com.planwith.planwith_fo_grade.adapter.out.redis.InMemoryGradeQueryCacheAdapter;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
+import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView.CurrentGradeView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView.CurrentMetricsView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView.MetricProgressView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView.NextGradeView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView.ProgressView;
 import com.planwith.planwith_fo_grade.domain.exception.GradeNotFoundException;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -37,7 +43,7 @@ class GetMyGradeManagementServiceTest {
 	@Test
 	void returnsLeafProgressTowardTraveler() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
-		GetMyGradeManagementService service = new GetMyGradeManagementService(
+		GetMyGradeManagementService service = service(
 				assigned(criteriaPort, GradeCode.LEAF),
 				criteriaPort,
 				metrics(7L, 62L, 410L)
@@ -67,7 +73,7 @@ class GetMyGradeManagementServiceTest {
 	@Test
 	void returnsNullNextGradeAndCompletedProgressForHighestGrade() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
-		GetMyGradeManagementService service = new GetMyGradeManagementService(
+		GetMyGradeManagementService service = service(
 				assigned(criteriaPort, GradeCode.PLANWITH),
 				criteriaPort,
 				metrics(180L, 40_000L, 120_000L)
@@ -85,7 +91,7 @@ class GetMyGradeManagementServiceTest {
 	@Test
 	void treatsMissingMetricsAsZero() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
-		GetMyGradeManagementService service = new GetMyGradeManagementService(
+		GetMyGradeManagementService service = service(
 				assigned(criteriaPort, GradeCode.ROOKIE),
 				criteriaPort,
 				new InMemoryMemberGradeMetricPort()
@@ -104,7 +110,7 @@ class GetMyGradeManagementServiceTest {
 	@Test
 	void keepsNextGradeAsImmediateNextEvenWhenHigherGradeMetricsAreAlreadyMet() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
-		GetMyGradeManagementService service = new GetMyGradeManagementService(
+		GetMyGradeManagementService service = service(
 				assigned(criteriaPort, GradeCode.LEAF),
 				criteriaPort,
 				metrics(35L, 1_500L, 6_200L)
@@ -121,7 +127,7 @@ class GetMyGradeManagementServiceTest {
 
 	@Test
 	void throwsWhenMemberGradeIsMissing() {
-		GetMyGradeManagementService service = new GetMyGradeManagementService(
+		GetMyGradeManagementService service = service(
 				new InMemoryGradeMemberPort(),
 				InMemoryGradeCriteriaPort.withCatalog(),
 				new InMemoryMemberGradeMetricPort()
@@ -129,6 +135,82 @@ class GetMyGradeManagementServiceTest {
 
 		assertThatThrownBy(() -> service.get(memberUuid))
 				.isInstanceOf(GradeNotFoundException.class);
+	}
+
+	@Test
+	void returnsCachedViewWithoutReadingDatabase() {
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		GradeManagementView cached = cachedLeafView();
+		cache.save(memberUuid, cached);
+		GetMyGradeManagementService service = new GetMyGradeManagementService(
+				new InMemoryGradeMemberPort(),
+				InMemoryGradeCriteriaPort.withCatalog(),
+				new InMemoryMemberGradeMetricPort(),
+				cache
+		);
+
+		GradeManagementView view = service.get(memberUuid);
+
+		assertThat(view).isEqualTo(cached);
+		assertThat(view.currentGrade().code()).isEqualTo("LEAF");
+		assertThat(view.currentBenefits().monthlyTokenAmount()).isEqualTo(20);
+		assertThat(view.progress().story().percentage()).isEqualTo(70);
+	}
+
+	@Test
+	void storesMysqlQueryResultInCacheOnMiss() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		GetMyGradeManagementService service = new GetMyGradeManagementService(
+				assigned(criteriaPort, GradeCode.LEAF),
+				criteriaPort,
+				metrics(7L, 62L, 410L),
+				cache
+		);
+
+		GradeManagementView view = service.get(memberUuid);
+
+		assertThat(cache.contains(memberUuid)).isTrue();
+		assertThat(cache.findByMemberUuid(memberUuid)).contains(view);
+		assertThat(view.nextGrade().code()).isEqualTo("TRAVELER");
+		assertThat(view.currentBenefits().monthlyTokenAmount()).isEqualTo(20);
+	}
+
+	private GetMyGradeManagementService service(
+			GradeMemberPort memberPort,
+			GradeCriteriaPort criteriaPort,
+			MemberGradeMetricPort metricPort
+	) {
+		return new GetMyGradeManagementService(
+				memberPort,
+				criteriaPort,
+				metricPort,
+				new InMemoryGradeQueryCacheAdapter()
+		);
+	}
+
+	private static GradeManagementView cachedLeafView() {
+		return new GradeManagementView(
+				new CurrentGradeView("LEAF", "🧳 잎새", 2, List.of()),
+				new CurrentMetricsView(7L, 62L, 410L),
+				new NextGradeView("TRAVELER", "✈️ 여행가", List.of()),
+				new ProgressView(
+						new MetricProgressView(7L, 10L, 3L, 70),
+						new MetricProgressView(62L, 100L, 38L, 62),
+						new MetricProgressView(410L, 500L, 90L, 82)
+				),
+				new CurrentBenefitSummaryView(
+						"LEAF",
+						"🧳 잎새",
+						2,
+						20,
+						false,
+						false,
+						false,
+						false,
+						null
+				)
+		);
 	}
 
 	private InMemoryGradeMemberPort assigned(InMemoryGradeCriteriaPort criteriaPort, GradeCode gradeCode) {

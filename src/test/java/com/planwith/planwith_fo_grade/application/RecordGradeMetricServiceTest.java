@@ -18,10 +18,13 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
+import com.planwith.planwith_fo_grade.adapter.out.redis.InMemoryGradeQueryCacheAdapter;
 import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
 import com.planwith.planwith_fo_grade.application.command.RecordGradeMetricCommand;
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
+import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.port.out.ProcessedGradeEventPort;
 import com.planwith.planwith_fo_grade.domain.model.MemberGradeMetric;
 import com.planwith.planwith_fo_grade.domain.model.MemberMetricType;
@@ -117,6 +120,7 @@ class RecordGradeMetricServiceTest {
 		RecordGradeMetricService service = new RecordGradeMetricService(
 				port,
 				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
 				evaluateProvider(evaluateGradeUseCase)
 		);
 
@@ -136,6 +140,7 @@ class RecordGradeMetricServiceTest {
 		RecordGradeMetricService service = new RecordGradeMetricService(
 				port,
 				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
 				evaluateProvider(evaluateGradeUseCase)
 		);
 		String eventUuid = UUID.randomUUID().toString();
@@ -155,6 +160,7 @@ class RecordGradeMetricServiceTest {
 		RecordGradeMetricService service = new RecordGradeMetricService(
 				port,
 				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
 				evaluateProvider(evaluateGradeUseCase)
 		);
 
@@ -166,11 +172,76 @@ class RecordGradeMetricServiceTest {
 		).orElseThrow().currentValue()).isEqualTo(1L);
 	}
 
+	@Test
+	void evictsQueryCacheAfterMetricUpdate() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		cache.save(memberUuid, cachedView());
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				cache,
+				emptyEvaluation()
+		);
+
+		service.record(command(MemberMetricType.STORY_COUNT.name(), 1L));
+
+		assertThat(cache.contains(memberUuid)).isFalse();
+	}
+
+	@Test
+	void doesNotEvictQueryCacheWhenDuplicateEventIsIgnored() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				cache,
+				emptyEvaluation()
+		);
+		String eventUuid = UUID.randomUUID().toString();
+		service.record(command(eventUuid, MemberMetricType.STORY_COUNT.name(), 1L, null));
+		cache.save(memberUuid, cachedView());
+
+		service.record(command(eventUuid, MemberMetricType.STORY_COUNT.name(), 1L, null));
+
+		assertThat(cache.contains(memberUuid)).isTrue();
+	}
+
+	private GradeManagementView cachedView() {
+		return new GradeManagementView(
+				new GradeManagementView.CurrentGradeView("ROOKIE", "🌱 새싹", 1, List.of()),
+				new GradeManagementView.CurrentMetricsView(0L, 0L, 0L),
+				new GradeManagementView.NextGradeView("LEAF", "🧳 잎새", List.of()),
+				new GradeManagementView.ProgressView(
+						new GradeManagementView.MetricProgressView(0L, 3L, 3L, 0),
+						new GradeManagementView.MetricProgressView(0L, 10L, 10L, 0),
+						new GradeManagementView.MetricProgressView(0L, 30L, 30L, 0)
+				),
+				new CurrentBenefitSummaryView(
+						"ROOKIE",
+						"🌱 새싹",
+						1,
+						10,
+						false,
+						false,
+						false,
+						false,
+						null
+				)
+		);
+	}
+
 	private RecordGradeMetricService service(
 			MemberGradeMetricPort port,
 			ProcessedGradeEventPort processedGradeEventPort
 	) {
-		return new RecordGradeMetricService(port, processedGradeEventPort, emptyEvaluation());
+		return new RecordGradeMetricService(
+				port,
+				processedGradeEventPort,
+				new InMemoryGradeQueryCacheAdapter(),
+				emptyEvaluation()
+		);
 	}
 
 	private RecordGradeMetricCommand command(String metricType, long delta) {

@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.planwith.planwith_fo_grade.application.port.in.GetMyGradeManagementQueryUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
 import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeBenefitView;
@@ -44,16 +45,19 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 	private final GradeMemberPort gradeMemberPort;
 	private final GradeCriteriaPort gradeCriteriaPort;
 	private final MemberGradeMetricPort memberGradeMetricPort;
+	private final GradeQueryCachePort gradeQueryCachePort;
 	private final GradeProgressCalculator gradeProgressCalculator = new GradeProgressCalculator();
 
 	public GetMyGradeManagementService(
 			GradeMemberPort gradeMemberPort,
 			GradeCriteriaPort gradeCriteriaPort,
-			MemberGradeMetricPort memberGradeMetricPort
+			MemberGradeMetricPort memberGradeMetricPort,
+			GradeQueryCachePort gradeQueryCachePort
 	) {
 		this.gradeMemberPort = gradeMemberPort;
 		this.gradeCriteriaPort = gradeCriteriaPort;
 		this.memberGradeMetricPort = memberGradeMetricPort;
+		this.gradeQueryCachePort = gradeQueryCachePort;
 	}
 
 	@Override
@@ -63,6 +67,25 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 		MemberUuid memberUuid = MemberUuid.from(memberUuidValue);
 		log.info("GetMyGradeManagementService : get : 내 등급 관리 조회 시작 - memberUuid={}", memberUuid);
 
+		Optional<GradeManagementView> cached = gradeQueryCachePort.findByMemberUuid(memberUuid.toString());
+		if (cached.isPresent()) {
+			log.info("GetMyGradeManagementService : get : 조회 캐시 HIT - memberUuid={}", memberUuid);
+			return cached.get();
+		}
+
+		log.info("GetMyGradeManagementService : get : 조회 캐시 MISS, MySQL 조회 시작 - memberUuid={}", memberUuid);
+		GradeManagementView view = loadFromDatabase(memberUuid);
+		gradeQueryCachePort.save(memberUuid.toString(), view);
+		log.info(
+				"GetMyGradeManagementService : get : 내 등급 관리 조회 완료 - memberUuid={}, currentGradeCode={}, nextGradeCode={}",
+				memberUuid,
+				view.currentGrade().code(),
+				view.nextGrade() == null ? null : view.nextGrade().code()
+		);
+		return view;
+	}
+
+	private GradeManagementView loadFromDatabase(MemberUuid memberUuid) {
 		GradeMember gradeMember = gradeMemberPort.findByMemberUuid(memberUuid)
 				.orElseThrow(() -> new GradeNotFoundException(memberUuid.toString()));
 		List<Grade> grades = gradeCriteriaPort.findAll();
@@ -72,21 +95,13 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 				.orElseThrow(() -> new InvalidGradeException("Grade criteria is not configured for the member."));
 		Map<GradeMetricType, Long> metricValues = toMetricValues(memberGradeMetricPort.findByMemberUuid(memberUuid));
 		Optional<Grade> nextGrade = gradeProgressCalculator.nextGrade(currentGrade, grades);
-
-		GradeManagementView view = new GradeManagementView(
+		return new GradeManagementView(
 				toCurrentGradeView(currentGrade),
 				toCurrentMetricsView(metricValues),
 				nextGrade.map(this::toNextGradeView).orElse(null),
 				toProgressView(currentGrade, nextGrade.orElse(null), metricValues),
 				CurrentBenefitSummaryView.from(currentGrade)
 		);
-		log.info(
-				"GetMyGradeManagementService : get : 내 등급 관리 조회 완료 - memberUuid={}, currentGradeCode={}, nextGradeCode={}",
-				memberUuid,
-				currentGrade.gradeCode(),
-				nextGrade.map(grade -> grade.gradeCode().name()).orElse(null)
-		);
-		return view;
 	}
 
 	private CurrentGradeView toCurrentGradeView(Grade grade) {

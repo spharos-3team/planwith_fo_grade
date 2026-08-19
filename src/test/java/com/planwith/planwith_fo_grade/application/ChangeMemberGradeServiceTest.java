@@ -16,12 +16,15 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planwith.planwith_fo_grade.adapter.out.redis.InMemoryGradeQueryCacheAdapter;
 import com.planwith.planwith_fo_grade.application.command.ChangeMemberGradeCommand;
 import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
+import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
+import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -45,8 +48,10 @@ class ChangeMemberGradeServiceTest {
 				assignedAt
 		));
 		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		cache.save(memberUuid, cachedView());
 		ChangeMemberGradeService service = new ChangeMemberGradeService(
-				memberPort, criteriaPort, outboxPort, objectMapper
+				memberPort, criteriaPort, outboxPort, cache, objectMapper
 		);
 
 		service.change(new ChangeMemberGradeCommand(
@@ -59,6 +64,7 @@ class ChangeMemberGradeServiceTest {
 		assertThat(saved.gradeId()).isEqualTo(criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId());
 		assertThat(saved.lastEvaluatedAt()).isNotNull();
 		assertThat(outboxPort.messages).hasSize(1);
+		assertThat(cache.contains(memberUuid)).isFalse();
 
 		GradeOutboxMessage message = outboxPort.messages.get(0);
 		assertThat(message.aggregateType()).isEqualTo("GradeMember");
@@ -96,6 +102,7 @@ class ChangeMemberGradeServiceTest {
 				message -> {
 					throw new IllegalStateException("Outbox INSERT 실패");
 				},
+				new InMemoryGradeQueryCacheAdapter(),
 				objectMapper
 		);
 
@@ -118,7 +125,7 @@ class ChangeMemberGradeServiceTest {
 		));
 		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
 		ChangeMemberGradeService service = new ChangeMemberGradeService(
-				memberPort, criteriaPort, outboxPort, objectMapper
+				memberPort, criteriaPort, outboxPort, new InMemoryGradeQueryCacheAdapter(), objectMapper
 		);
 
 		assertThatThrownBy(() -> service.change(new ChangeMemberGradeCommand(
@@ -132,11 +139,59 @@ class ChangeMemberGradeServiceTest {
 	}
 
 	@Test
+	void doesNotEvictCacheWhenGradeChangeIsRejected() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
+		memberPort.save(GradeMember.assign(
+				criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		InMemoryGradeQueryCacheAdapter cache = new InMemoryGradeQueryCacheAdapter();
+		cache.save(memberUuid, cachedView());
+		ChangeMemberGradeService service = new ChangeMemberGradeService(
+				memberPort, criteriaPort, new InMemoryGradeEventOutboxPort(), cache, objectMapper
+		);
+
+		assertThatThrownBy(() -> service.change(new ChangeMemberGradeCommand(
+				memberUuid,
+				GradeCode.EXPLORER.name(),
+				GradeCode.TRAVELER.name()
+		))).isInstanceOf(InvalidGradeException.class);
+		assertThat(cache.contains(memberUuid)).isTrue();
+	}
+
+	private GradeManagementView cachedView() {
+		return new GradeManagementView(
+				new GradeManagementView.CurrentGradeView("TRAVELER", "✈️ 여행가", 3, List.of()),
+				new GradeManagementView.CurrentMetricsView(0L, 0L, 0L),
+				new GradeManagementView.NextGradeView("EXPLORER", "🧭 탐험가", List.of()),
+				new GradeManagementView.ProgressView(
+						new GradeManagementView.MetricProgressView(0L, 30L, 30L, 0),
+						new GradeManagementView.MetricProgressView(0L, 1_000L, 1_000L, 0),
+						new GradeManagementView.MetricProgressView(0L, 5_000L, 5_000L, 0)
+				),
+				new CurrentBenefitSummaryView(
+						"TRAVELER",
+						"✈️ 여행가",
+						3,
+						30,
+						false,
+						false,
+						false,
+						false,
+						null
+				)
+		);
+	}
+
+	@Test
 	void rejectsMissingMember() {
 		ChangeMemberGradeService service = new ChangeMemberGradeService(
 				new InMemoryGradeMemberPort(),
 				InMemoryGradeCriteriaPort.withCatalog(),
 				new InMemoryGradeEventOutboxPort(),
+				new InMemoryGradeQueryCacheAdapter(),
 				objectMapper
 		);
 
