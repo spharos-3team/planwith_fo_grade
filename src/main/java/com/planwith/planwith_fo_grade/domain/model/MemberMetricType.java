@@ -1,5 +1,7 @@
 package com.planwith.planwith_fo_grade.domain.model;
 
+import java.util.Optional;
+
 /**
  * 회원 Metric({@code member_grade_metric})에서 사용하는 Metric 타입.
  * {@link GradeMetricType}에 {@code POST_COUNT}가 추가된 superset이다.
@@ -15,6 +17,15 @@ public enum MemberMetricType {
 			case STORY_COUNT -> STORY_COUNT;
 			case FOLLOWER_COUNT -> FOLLOWER_COUNT;
 			case RECEIVED_LIKE_COUNT -> RECEIVED_LIKE_COUNT;
+		};
+	}
+
+	public Optional<GradeMetricType> toGradeMetricType() {
+		return switch (this) {
+			case STORY_COUNT -> Optional.of(GradeMetricType.STORY_COUNT);
+			case FOLLOWER_COUNT -> Optional.of(GradeMetricType.FOLLOWER_COUNT);
+			case RECEIVED_LIKE_COUNT -> Optional.of(GradeMetricType.RECEIVED_LIKE_COUNT);
+			case POST_COUNT -> Optional.empty();
 		};
 	}
 }

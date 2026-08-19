@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -204,6 +205,13 @@ class RecordGradeMetricServiceTest {
 				MemberMetricType metricType
 		) {
 			return Optional.ofNullable(metrics.get(key(memberUuid, metricType)));
+		}
+
+		@Override
+		public List<MemberGradeMetric> findByMemberUuid(MemberUuid memberUuid) {
+			return metrics.values().stream()
+					.filter(metric -> metric.memberUuid().equals(memberUuid))
+					.toList();
 		}
 
 		@Override
