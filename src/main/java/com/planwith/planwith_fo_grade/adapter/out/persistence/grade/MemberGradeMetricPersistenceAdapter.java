@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_grade.adapter.out.persistence.grade;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -27,6 +28,15 @@ public class MemberGradeMetricPersistenceAdapter implements MemberGradeMetricPor
 	) {
 		return memberGradeMetricRepository.findByMemberUuidAndMetricType(memberUuid.value(), metricType)
 				.map(GradePersistenceMapper::toDomain);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<MemberGradeMetric> findByMemberUuid(MemberUuid memberUuid) {
+		return memberGradeMetricRepository.findByMemberUuid(memberUuid.value())
+				.stream()
+				.map(GradePersistenceMapper::toDomain)
+				.toList();
 	}
 
 	@Override

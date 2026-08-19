@@ -69,6 +69,8 @@ class MemberGradeMetricTest {
 		assertThat(GradeMetricType.values()).doesNotContainNull();
 		assertThat(MemberMetricType.fromGradeMetricType(GradeMetricType.STORY_COUNT))
 				.isEqualTo(MemberMetricType.STORY_COUNT);
+		assertThat(MemberMetricType.STORY_COUNT.toGradeMetricType()).contains(GradeMetricType.STORY_COUNT);
+		assertThat(MemberMetricType.POST_COUNT.toGradeMetricType()).isEmpty();
 	}
 
 	@Test
