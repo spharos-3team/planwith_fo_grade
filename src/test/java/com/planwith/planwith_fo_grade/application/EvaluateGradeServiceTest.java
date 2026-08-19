@@ -36,6 +36,40 @@ class EvaluateGradeServiceTest {
 	private final LocalDateTime assignedAt = LocalDateTime.of(2026, 8, 19, 3, 0);
 
 	@Test
+	void promotesLeafToTravelerWhenAllTravelerThresholdsAreMet() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeMemberPort memberPort = assigned(criteriaPort, GradeCode.LEAF);
+		InMemoryMemberGradeMetricPort metricPort = new InMemoryMemberGradeMetricPort();
+		InMemoryGradeEventOutboxPort outboxPort = new InMemoryGradeEventOutboxPort();
+		metricPort.save(metric(MemberMetricType.STORY_COUNT, 10L, "story-service"));
+		metricPort.save(metric(MemberMetricType.FOLLOWER_COUNT, 100L, "follow-service"));
+		metricPort.save(metric(MemberMetricType.RECEIVED_LIKE_COUNT, 500L, "like-service"));
+		EvaluateGradeService service = service(memberPort, criteriaPort, metricPort, outboxPort);
+
+		service.evaluate(new EvaluateGradeCommand(memberUuid));
+
+		assertThat(memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().gradeId())
+				.isEqualTo(criteriaPort.findByGradeCode(GradeCode.TRAVELER).orElseThrow().gradeId());
+		assertThat(outboxPort.messages).hasSize(1);
+	}
+
+	@Test
+	void keepsLeafWhenAnyTravelerThresholdIsMissing() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeMemberPort memberPort = assigned(criteriaPort, GradeCode.LEAF);
+		InMemoryMemberGradeMetricPort metricPort = new InMemoryMemberGradeMetricPort();
+		metricPort.save(metric(MemberMetricType.STORY_COUNT, 9L, "story-service"));
+		metricPort.save(metric(MemberMetricType.FOLLOWER_COUNT, 100L, "follow-service"));
+		metricPort.save(metric(MemberMetricType.RECEIVED_LIKE_COUNT, 500L, "like-service"));
+		EvaluateGradeService service = service(memberPort, criteriaPort, metricPort, new InMemoryGradeEventOutboxPort());
+
+		service.evaluate(new EvaluateGradeCommand(memberUuid));
+
+		assertThat(memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().gradeId())
+				.isEqualTo(criteriaPort.findByGradeCode(GradeCode.LEAF).orElseThrow().gradeId());
+	}
+
+	@Test
 	void promotesRookieToExplorerWhenAllExplorerThresholdsAreMet() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
 		InMemoryGradeMemberPort memberPort = assignedRookie(criteriaPort);
@@ -122,6 +156,16 @@ class EvaluateGradeServiceTest {
 
 		assertThat(memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow().gradeId())
 				.isEqualTo(criteriaPort.findByGradeCode(GradeCode.EXPLORER).orElseThrow().gradeId());
+	}
+
+	private InMemoryGradeMemberPort assigned(InMemoryGradeCriteriaPort criteriaPort, GradeCode gradeCode) {
+		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
+		memberPort.save(GradeMember.assign(
+				criteriaPort.findByGradeCode(gradeCode).orElseThrow().gradeId(),
+				MemberUuid.from(memberUuid),
+				assignedAt
+		));
+		return memberPort;
 	}
 
 	private InMemoryGradeMemberPort assignedRookie(InMemoryGradeCriteriaPort criteriaPort) {

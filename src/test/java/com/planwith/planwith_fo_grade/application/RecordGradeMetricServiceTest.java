@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,6 +51,36 @@ class RecordGradeMetricServiceTest {
 		assertThat(saved.currentValue()).isEqualTo(1L);
 		assertThat(saved.sourceService()).isEqualTo("story-service");
 		assertThat(saved.sourceVersion()).isEqualTo(1L);
+	}
+
+	@Test
+	void increasesAndDecreasesStoryFollowAndLikeCounts() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		RecordGradeMetricService service = service(port, new InMemoryProcessedGradeEventPort());
+		port.save(reconstituted(MemberMetricType.STORY_COUNT, 10L, "story-service", 1L));
+		port.save(reconstituted(MemberMetricType.FOLLOWER_COUNT, 99L, "follow-service", 1L));
+		port.save(reconstituted(MemberMetricType.RECEIVED_LIKE_COUNT, 499L, "like-service", 1L));
+
+		service.record(command(MemberMetricType.STORY_COUNT.name(), 1L));
+		service.record(command(MemberMetricType.STORY_COUNT.name(), -1L));
+		service.record(command(MemberMetricType.FOLLOWER_COUNT.name(), 1L));
+		service.record(command(MemberMetricType.FOLLOWER_COUNT.name(), -1L));
+		service.record(command(MemberMetricType.RECEIVED_LIKE_COUNT.name(), 1L));
+		service.record(command(MemberMetricType.RECEIVED_LIKE_COUNT.name(), -1L));
+
+		assertThat(value(port, MemberMetricType.STORY_COUNT)).isEqualTo(10L);
+		assertThat(value(port, MemberMetricType.FOLLOWER_COUNT)).isEqualTo(99L);
+		assertThat(value(port, MemberMetricType.RECEIVED_LIKE_COUNT)).isEqualTo(499L);
+	}
+
+	@Test
+	void storyDeletedFromZeroStaysZero() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		RecordGradeMetricService service = service(port, new InMemoryProcessedGradeEventPort());
+
+		service.record(command(MemberMetricType.STORY_COUNT.name(), -1L));
+
+		assertThat(value(port, MemberMetricType.STORY_COUNT)).isZero();
 	}
 
 	@Test
@@ -269,6 +300,29 @@ class RecordGradeMetricServiceTest {
 
 	private RecordGradeMetricCommand command(String eventUuid, String metricType, long delta, Long sourceVersion) {
 		return new RecordGradeMetricCommand(eventUuid, memberUuid, metricType, delta, sourceVersion);
+	}
+
+	private MemberGradeMetric reconstituted(
+			MemberMetricType metricType,
+			long currentValue,
+			String sourceService,
+			long sourceVersion
+	) {
+		return MemberGradeMetric.reconstitute(
+				1L,
+				MemberUuid.from(memberUuid),
+				metricType,
+				currentValue,
+				sourceService,
+				sourceVersion,
+				LocalDateTime.of(2026, 8, 19, 3, 0)
+		);
+	}
+
+	private long value(InMemoryMemberGradeMetricPort port, MemberMetricType metricType) {
+		return port.findByMemberUuidAndMetricType(MemberUuid.from(memberUuid), metricType)
+				.orElseThrow()
+				.currentValue();
 	}
 
 	@SuppressWarnings("unchecked")

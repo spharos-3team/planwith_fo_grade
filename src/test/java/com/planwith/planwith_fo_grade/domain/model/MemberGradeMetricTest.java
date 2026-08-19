@@ -40,6 +40,33 @@ class MemberGradeMetricTest {
 	}
 
 	@Test
+	void increasesAndDecreasesStoryFollowAndLikeMetrics() {
+		MemberGradeMetric story = metric(MemberMetricType.STORY_COUNT, 10L, "story-service", 1L);
+		MemberGradeMetric follower = metric(MemberMetricType.FOLLOWER_COUNT, 99L, "follow-service", 1L);
+		MemberGradeMetric like = metric(MemberMetricType.RECEIVED_LIKE_COUNT, 499L, "like-service", 1L);
+
+		assertThat(story.applyDelta(1L, "story-service", 2L, syncedAt.plusMinutes(1)).currentValue()).isEqualTo(11L);
+		assertThat(story.applyDelta(1L, "story-service", 2L, syncedAt.plusMinutes(1))
+				.applyDelta(-1L, "story-service", 3L, syncedAt.plusMinutes(2)).currentValue()).isEqualTo(10L);
+		assertThat(follower.applyDelta(1L, "follow-service", 2L, syncedAt.plusMinutes(1)).currentValue()).isEqualTo(100L);
+		assertThat(follower.applyDelta(1L, "follow-service", 2L, syncedAt.plusMinutes(1))
+				.applyDelta(-1L, "follow-service", 3L, syncedAt.plusMinutes(2)).currentValue()).isEqualTo(99L);
+		assertThat(like.applyDelta(1L, "like-service", 2L, syncedAt.plusMinutes(1)).currentValue()).isEqualTo(500L);
+		assertThat(like.applyDelta(1L, "like-service", 2L, syncedAt.plusMinutes(1))
+				.applyDelta(-1L, "like-service", 3L, syncedAt.plusMinutes(2)).currentValue()).isEqualTo(499L);
+	}
+
+	@Test
+	void doesNotAllowMetricValueBelowZero() {
+		MemberGradeMetric metric = MemberGradeMetric.initialize(
+				memberUuid, MemberMetricType.STORY_COUNT, "story-service", syncedAt
+		);
+
+		assertThatThrownBy(() -> metric.applyDelta(-1L, "story-service", 1L, syncedAt.plusMinutes(1)))
+				.isInstanceOf(InvalidGradeException.class);
+	}
+
+	@Test
 	void ignoresDuplicateSourceVersion() {
 		MemberGradeMetric metric = MemberGradeMetric.reconstitute(
 				1L, memberUuid, MemberMetricType.STORY_COUNT, 10L, "story-service", 5L, syncedAt
@@ -81,5 +108,22 @@ class MemberGradeMetricTest {
 
 		assertThatThrownBy(() -> metric.synchronize(-1L, "story-service", 1L, syncedAt.plusMinutes(1)))
 				.isInstanceOf(InvalidGradeException.class);
+	}
+
+	private MemberGradeMetric metric(
+			MemberMetricType metricType,
+			long currentValue,
+			String sourceService,
+			long sourceVersion
+	) {
+		return MemberGradeMetric.reconstitute(
+				1L,
+				memberUuid,
+				metricType,
+				currentValue,
+				sourceService,
+				sourceVersion,
+				syncedAt
+		);
 	}
 }
