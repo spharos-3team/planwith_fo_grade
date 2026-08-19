@@ -109,8 +109,17 @@ public class RecordGradeMetricService implements RecordGradeMetricUseCase {
 				saved.metricType(),
 				saved.currentValue()
 		);
-		gradeQueryCachePort.evict(memberUuid.toString());
+		evictQueryCache(memberUuid.toString());
 		triggerGradeEvaluation(memberUuid);
+	}
+
+	private void evictQueryCache(String memberUuid) {
+		try {
+			gradeQueryCachePort.evict(memberUuid);
+		} catch (RuntimeException exception) {
+			log.warn("RecordGradeMetricService : record : Redis 캐시 삭제 실패, MySQL Metric 상태는 유지 - memberUuid={}",
+					memberUuid);
+		}
 	}
 
 	private void triggerGradeEvaluation(MemberUuid memberUuid) {

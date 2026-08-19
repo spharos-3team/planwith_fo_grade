@@ -50,6 +50,9 @@ class GradeOutboxJpaEntity {
 	@Column(name = "retry_count", nullable = false)
 	private int retryCount;
 
+	@Column(name = "next_retry_at")
+	private Instant nextRetryAt;
+
 	protected GradeOutboxJpaEntity() {
 	}
 
@@ -72,10 +75,16 @@ class GradeOutboxJpaEntity {
 
 	void markPublished(Instant publishedAt) {
 		this.publishedAt = publishedAt;
+		this.nextRetryAt = null;
 	}
 
-	void increaseRetryCount() {
+	void recordPublishFailure(Instant nextRetryAt) {
 		this.retryCount++;
+		this.nextRetryAt = nextRetryAt;
+	}
+
+	boolean isDue(Instant now) {
+		return publishedAt == null && (nextRetryAt == null || !nextRetryAt.isAfter(now));
 	}
 
 	Long outboxId() { return outboxId; }
@@ -87,4 +96,5 @@ class GradeOutboxJpaEntity {
 	Instant occurredAt() { return occurredAt; }
 	Instant publishedAt() { return publishedAt; }
 	int retryCount() { return retryCount; }
+	Instant nextRetryAt() { return nextRetryAt; }
 }

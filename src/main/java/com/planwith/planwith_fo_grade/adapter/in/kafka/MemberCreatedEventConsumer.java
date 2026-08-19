@@ -55,6 +55,10 @@ public class MemberCreatedEventConsumer {
 		} catch (IllegalArgumentException exception) {
 			log.error("MemberCreatedEventConsumer : consume : 잘못된 memberUuid로 초기 등급 부여를 생략 - memberUuid={}",
 					event.memberUuid());
+		} catch (RuntimeException exception) {
+			log.error("MemberCreatedEventConsumer : consume : 초기 등급 부여 실패로 재처리 대기 - memberUuid={}",
+					event.memberUuid());
+			throw exception;
 		}
 	}
 

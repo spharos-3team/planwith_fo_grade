@@ -2,6 +2,7 @@ package com.planwith.planwith_fo_grade.adapter.out.persistence.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -54,5 +55,26 @@ class GradeEventOutboxAdapterIntegrationTest {
 			assertThat(outbox.retryCount()).isZero();
 		});
 		assertThat(repository.findUnpublished(PageRequest.of(0, 10))).hasSize(1);
+		assertThat(repository.findDueUnpublished(Instant.now(), PageRequest.of(0, 10))).hasSize(1);
+	}
+
+	@Test
+	void doesNotReturnUnpublishedOutboxUntilBackoffElapsed() {
+		UUID eventUuid = UUID.randomUUID();
+		GradeOutboxJpaEntity outbox = new GradeOutboxJpaEntity(
+				eventUuid,
+				"Grade",
+				UUID.randomUUID(),
+				GradeChangedEvent.EVENT_TYPE,
+				"{\"memberUuid\":\"member-uuid\"}",
+				Instant.parse("2026-08-19T06:00:00Z")
+		);
+		Instant now = Instant.parse("2026-08-19T06:00:00Z");
+		outbox.recordPublishFailure(now.plusSeconds(30));
+		repository.save(outbox);
+
+		assertThat(repository.findUnpublished(PageRequest.of(0, 10))).hasSize(1);
+		assertThat(repository.findDueUnpublished(now, PageRequest.of(0, 10))).isEmpty();
+		assertThat(repository.findDueUnpublished(now.plusSeconds(30), PageRequest.of(0, 10))).hasSize(1);
 	}
 }
