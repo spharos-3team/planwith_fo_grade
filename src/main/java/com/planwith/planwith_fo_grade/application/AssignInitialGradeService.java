@@ -1,6 +1,7 @@
 package com.planwith.planwith_fo_grade.application;
 
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -9,7 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_grade.application.command.AssignInitialGradeCommand;
+import com.planwith.planwith_fo_grade.application.command.GrantGradeRewardCommand;
+import com.planwith.planwith_fo_grade.application.event.GradeRewardGrantedEvent;
 import com.planwith.planwith_fo_grade.application.port.in.AssignInitialGradeUseCase;
+import com.planwith.planwith_fo_grade.application.port.in.GrantGradeRewardUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
@@ -24,10 +28,16 @@ public class AssignInitialGradeService implements AssignInitialGradeUseCase {
 
 	private final GradeCriteriaPort gradeCriteriaPort;
 	private final GradeMemberPort gradeMemberPort;
+	private final GrantGradeRewardUseCase grantGradeRewardUseCase;
 
-	public AssignInitialGradeService(GradeCriteriaPort gradeCriteriaPort, GradeMemberPort gradeMemberPort) {
+	public AssignInitialGradeService(
+			GradeCriteriaPort gradeCriteriaPort,
+			GradeMemberPort gradeMemberPort,
+			GrantGradeRewardUseCase grantGradeRewardUseCase
+	) {
 		this.gradeCriteriaPort = gradeCriteriaPort;
 		this.gradeMemberPort = gradeMemberPort;
+		this.grantGradeRewardUseCase = grantGradeRewardUseCase;
 	}
 
 	@Override
@@ -42,6 +52,7 @@ public class AssignInitialGradeService implements AssignInitialGradeUseCase {
 		if (gradeMemberPort.findByMemberUuid(memberUuid).isPresent()) {
 			log.warn("AssignInitialGradeService : assign : 이미 등급이 부여된 회원이라 초기 등급 부여를 생략 - memberUuid={}",
 					memberUuid);
+			grantSignupMonthToken(memberUuid, assignedAt);
 			return;
 		}
 
@@ -51,12 +62,28 @@ public class AssignInitialGradeService implements AssignInitialGradeUseCase {
 		GradeMember saved = gradeMemberPort.save(
 				GradeMember.assign(initialGrade.gradeId(), memberUuid, assignedAt)
 		);
+		grantSignupMonthToken(saved.memberUuid(), assignedAt);
 
 		log.info(
-				"AssignInitialGradeService : assign : 회원 초기 등급 부여 완료 - memberUuid={}, gradeCode={}, gradeId={}",
+				"AssignInitialGradeService : assign : 회원 초기 등급 및 가입월 토큰 지급 요청 완료 - memberUuid={}, gradeCode={}, gradeId={}",
 				saved.memberUuid(),
 				initialGrade.gradeCode(),
 				saved.gradeId()
 		);
+	}
+
+	private void grantSignupMonthToken(MemberUuid memberUuid, LocalDateTime assignedAt) {
+		String rewardMonth = YearMonth.from(assignedAt).toString();
+		log.info(
+				"AssignInitialGradeService : grantSignupMonthToken : 가입월 토큰 지급 요청 - memberUuid={}, rewardMonth={}",
+				memberUuid,
+				rewardMonth
+		);
+		grantGradeRewardUseCase.grant(new GrantGradeRewardCommand(
+				memberUuid.toString(),
+				null,
+				GradeRewardGrantedEvent.REWARD_TYPE_MONTHLY_FREE_TOKEN,
+				rewardMonth
+		));
 	}
 }

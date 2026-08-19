@@ -15,6 +15,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.planwith.planwith_fo_grade.application.command.AssignInitialGradeCommand;
+import com.planwith.planwith_fo_grade.application.command.GrantGradeRewardCommand;
+import com.planwith.planwith_fo_grade.application.event.GradeRewardGrantedEvent;
+import com.planwith.planwith_fo_grade.application.port.in.GrantGradeRewardUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
@@ -33,7 +36,8 @@ class AssignInitialGradeServiceTest {
 	void assignsLowestGradeToNewMember() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withRookieAndLeaf();
 		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
-		AssignInitialGradeService service = new AssignInitialGradeService(criteriaPort, memberPort);
+		CapturingGrantGradeRewardUseCase rewardUseCase = new CapturingGrantGradeRewardUseCase();
+		AssignInitialGradeService service = new AssignInitialGradeService(criteriaPort, memberPort, rewardUseCase);
 
 		service.assign(new AssignInitialGradeCommand(memberUuid, assignedAt));
 
@@ -42,13 +46,21 @@ class AssignInitialGradeServiceTest {
 		assertThat(saved.gradeStatus()).isEqualTo(GradeStatus.ACTIVE);
 		assertThat(saved.gradeAssignedAt()).isEqualTo(assignedAt);
 		assertThat(criteriaPort.findLowestGrade().orElseThrow().gradeCode()).isEqualTo(GradeCode.ROOKIE);
+		assertThat(rewardUseCase.commands).hasSize(1);
+		assertThat(rewardUseCase.commands.get(0)).isEqualTo(new GrantGradeRewardCommand(
+				memberUuid,
+				null,
+				GradeRewardGrantedEvent.REWARD_TYPE_MONTHLY_FREE_TOKEN,
+				"2026-08"
+		));
 	}
 
 	@Test
 	void skipsWhenMemberAlreadyHasGrade() {
 		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withRookieAndLeaf();
 		InMemoryGradeMemberPort memberPort = new InMemoryGradeMemberPort();
-		AssignInitialGradeService service = new AssignInitialGradeService(criteriaPort, memberPort);
+		CapturingGrantGradeRewardUseCase rewardUseCase = new CapturingGrantGradeRewardUseCase();
+		AssignInitialGradeService service = new AssignInitialGradeService(criteriaPort, memberPort, rewardUseCase);
 		AssignInitialGradeCommand command = new AssignInitialGradeCommand(memberUuid, assignedAt);
 
 		service.assign(command);
@@ -57,17 +69,32 @@ class AssignInitialGradeServiceTest {
 		GradeMember saved = memberPort.findByMemberUuid(MemberUuid.from(memberUuid)).orElseThrow();
 		assertThat(memberPort.saveCount).isEqualTo(1);
 		assertThat(saved.gradeAssignedAt()).isEqualTo(assignedAt);
+		assertThat(rewardUseCase.commands).hasSize(2);
+		assertThat(rewardUseCase.commands.get(1).rewardMonth()).isEqualTo("2026-08");
 	}
 
 	@Test
 	void failsWhenLowestGradeCriteriaIsMissing() {
+		CapturingGrantGradeRewardUseCase rewardUseCase = new CapturingGrantGradeRewardUseCase();
 		AssignInitialGradeService service = new AssignInitialGradeService(
 				new InMemoryGradeCriteriaPort(),
-				new InMemoryGradeMemberPort()
+				new InMemoryGradeMemberPort(),
+				rewardUseCase
 		);
 
 		assertThatThrownBy(() -> service.assign(new AssignInitialGradeCommand(memberUuid, assignedAt)))
 				.isInstanceOf(InvalidGradeException.class);
+		assertThat(rewardUseCase.commands).isEmpty();
+	}
+
+	private static final class CapturingGrantGradeRewardUseCase implements GrantGradeRewardUseCase {
+
+		private final List<GrantGradeRewardCommand> commands = new ArrayList<>();
+
+		@Override
+		public void grant(GrantGradeRewardCommand command) {
+			commands.add(command);
+		}
 	}
 
 	private static final class InMemoryGradeCriteriaPort implements GradeCriteriaPort {
