@@ -12,4 +12,6 @@ interface SpringDataGradeRepository extends JpaRepository<GradeJpaEntity, Long> 
 	Optional<GradeJpaEntity> findByGradeCode(GradeCode gradeCode);
 
 	List<GradeJpaEntity> findAllByOrderByGradeLevelAsc();
+
+	Optional<GradeJpaEntity> findFirstByOrderByGradeLevelAsc();
 }

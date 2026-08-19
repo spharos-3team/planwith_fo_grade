@@ -33,10 +33,14 @@ public class GradeCriteriaPersistenceAdapter implements GradeCriteriaPort {
 	@Transactional(readOnly = true)
 	public Optional<Grade> findByGradeCode(GradeCode gradeCode) {
 		return gradeRepository.findByGradeCode(gradeCode)
-				.map(entity -> {
-					initializeCriteria(entity);
-					return GradePersistenceMapper.toDomain(entity);
-				});
+				.map(GradeCriteriaPersistenceAdapter::toDomain);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<Grade> findLowestGrade() {
+		return gradeRepository.findFirstByOrderByGradeLevelAsc()
+				.map(GradeCriteriaPersistenceAdapter::toDomain);
 	}
 
 	@Override
@@ -45,6 +49,11 @@ public class GradeCriteriaPersistenceAdapter implements GradeCriteriaPort {
 		GradeJpaEntity saved = gradeRepository.save(GradePersistenceMapper.toEntity(grade));
 		initializeCriteria(saved);
 		return GradePersistenceMapper.toDomain(saved);
+	}
+
+	private static Grade toDomain(GradeJpaEntity entity) {
+		initializeCriteria(entity);
+		return GradePersistenceMapper.toDomain(entity);
 	}
 
 	private static void initializeCriteria(GradeJpaEntity entity) {

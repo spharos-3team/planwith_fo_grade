@@ -31,6 +31,7 @@ public class GradeKafkaProperties {
 		private String followRemoved = "planwith.follow.removed";
 		private String likeCreated = "planwith.like.created";
 		private String likeRemoved = "planwith.like.removed";
+		private String memberCreated = "planwith.member.created";
 		private String gradeChanged = "planwith.grade.changed";
 		private String gradeRewardGranted = "planwith.grade.reward-granted";
 
@@ -46,6 +47,8 @@ public class GradeKafkaProperties {
 		public void setLikeCreated(String likeCreated) { this.likeCreated = likeCreated; }
 		public String getLikeRemoved() { return likeRemoved; }
 		public void setLikeRemoved(String likeRemoved) { this.likeRemoved = likeRemoved; }
+		public String getMemberCreated() { return memberCreated; }
+		public void setMemberCreated(String memberCreated) { this.memberCreated = memberCreated; }
 		public String getGradeChanged() { return gradeChanged; }
 		public void setGradeChanged(String gradeChanged) { this.gradeChanged = gradeChanged; }
 		public String getGradeRewardGranted() { return gradeRewardGranted; }
