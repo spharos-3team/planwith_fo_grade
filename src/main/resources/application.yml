@@ -69,6 +69,8 @@ app:
     marker: ${DEPLOY_MARKER:planwith-fo-grade-deploy-v1}
 
 grade:
+  criteria:
+    seed-enabled: ${GRADE_CRITERIA_SEED_ENABLED:true}
   kafka:
     consumer-enabled: ${GRADE_KAFKA_CONSUMER_ENABLED:true}
     topics:

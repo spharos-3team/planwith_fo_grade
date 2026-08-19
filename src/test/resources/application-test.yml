@@ -31,6 +31,8 @@ management:
       enabled: false
 
 grade:
+  criteria:
+    seed-enabled: false
   kafka:
     consumer-enabled: false
   outbox:

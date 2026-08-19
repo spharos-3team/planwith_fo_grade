@@ -15,6 +15,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 @Entity
@@ -40,9 +41,11 @@ class GradeJpaEntity {
 	private String description;
 
 	@OneToMany(mappedBy = "grade", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	@OrderBy("sortOrder asc")
 	private final List<GradeConditionJpaEntity> conditions = new ArrayList<>();
 
 	@OneToMany(mappedBy = "grade", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	@OrderBy("sortOrder asc")
 	private final List<GradeBenefitJpaEntity> benefits = new ArrayList<>();
 
 	protected GradeJpaEntity() {
