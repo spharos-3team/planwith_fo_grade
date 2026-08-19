@@ -1,18 +1,22 @@
 # AWS deploy — copy into each service repo as .github/workflows/deploy-aws.yml
 # Keeps existing Windows deploy.yml (planwith-server) untouched.
 #
+# Shape (same as a typical build → registry → SSH replace):
+#   checkout → OIDC → ECR build/push → appleboy/ssh-action → EC2 deploy-aws.sh
+# EC2 still uses docker compose (MSA). Do not docker run a second stack.
+#
 # Required repo Variables:
-#   AWS_REGION, AWS_ACCOUNT_ID, ECR_REGISTRY, AWS_ROLE_ARN, AWS_EC2_INSTANCE_ID
+#   AWS_REGION, AWS_ACCOUNT_ID, ECR_REGISTRY, AWS_ROLE_ARN, AWS_EC2_HOST
+# Required repo Secret:
+#   PLANWITH_AWS_SSH_KEY  (PEM; install-aws-workflows.ps1 sets it from the local key)
 #
 # Placeholders:
-#   planwith-fo-grade  compose service name (e.g. planwith-fo-member, discovery)
-#   planwith-fo-grade      ECR repository name (e.g. planwith-fo-member)
-#   develop        trigger branch (develop or main)
+#   planwith-fo-grade  compose / ECR / Actions name (same string, e.g. planwith-fo-member)
+#   planwith-fo-grade      must equal planwith-fo-grade
+#   develop        develop (FO) or main (discovery/gateway)
 
 name: Deploy AWS planwith-fo-grade
 
-# Trigger only on push (PR merge already creates a push). Do NOT also listen to
-# pull_request closed — that double-fires and races docker compose recreate on EC2.
 on:
   push:
     branches: [develop]
@@ -33,14 +37,12 @@ env:
   ECR_REPOSITORY: planwith-fo-grade
   IMAGE_TAG: latest
   SERVICE_NAME: planwith-fo-grade
-  DEPLOY_DIR: /opt/planwith
 
 jobs:
-  build-and-push:
+  CI-CD:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -57,82 +59,25 @@ jobs:
             || aws ecr create-repository --repository-name "${ECR_REPOSITORY}" --region "${AWS_REGION}" \
                  --image-scanning-configuration scanOnPush=true
 
-      - name: Build and push image
+      - name: Docker build and push to ECR
         run: |
           IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Deploy on EC2 via SSM
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
         env:
-          INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID }}
-        run: |
-          set -euo pipefail
-          : "${INSTANCE_ID:?AWS_EC2_INSTANCE_ID must be set}"
-          SHORT="${SERVICE_NAME##*-}"
-
-          # AWS-RunShellScript uses /bin/sh; invoke deploy script with bash.
-          # Overlay/env/SQL seeds cover a stale /opt/planwith (new service not in last S3 bundle).
-          jq -n --arg svc "${SERVICE_NAME}" --arg short "${SHORT}" '{
-            commands: [
-              "export HOME=/root",
-              "cd /opt/planwith",
-              "sed -i \"s/\\r$//\" scripts/deploy-aws.sh scripts/ensure-databases.sh || true",
-              "chmod +x scripts/deploy-aws.sh scripts/ensure-databases.sh 2>/dev/null || true",
-              ("case \"" + $svc + "\" in discovery|gateway|mysql) ;; *) if [ ! -f env/" + $short + ".env ] && [ -f env/" + $short + ".env.example ]; then cp env/" + $short + ".env.example env/" + $short + ".env; fi; if [ ! -f env/" + $short + ".env ]; then printf \"DB_URL=jdbc:mysql://mysql:3306/" + $short + "_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8\\nDB_USERNAME=" + $short + "_user\\nDB_PASSWORD=" + $short + "_pass\\nJPA_DDL_AUTO=update\\n\" > env/" + $short + ".env; fi; mkdir -p db/init; if [ ! -f db/init/00-create-databases.sql ] || ! grep -q " + $short + "_db db/init/00-create-databases.sql; then printf \"\\nCREATE DATABASE IF NOT EXISTS " + $short + "_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\\nCREATE USER IF NOT EXISTS '" + $short + "_user'@'%%' IDENTIFIED BY '" + $short + "_pass';\\nGRANT ALL PRIVILEGES ON " + $short + "_db.* TO '" + $short + "_user'@'%%';\\nFLUSH PRIVILEGES;\\n\" >> db/init/00-create-databases.sql; fi ;; esac"),
-              ("if ! grep -qE \"^[[:space:]]+" + $svc + ":\" docker-compose.aws.yml 2>/dev/null; then printf '\\n  %s:\\n    image: ${ECR_REGISTRY}/%s:${IMAGE_TAG:-latest}\\n    pull_policy: always\\n    restart: unless-stopped\\n    env_file:\\n      - ./env/common.env\\n      - ./env/%s.env\\n    environment:\\n      SPRING_APPLICATION_NAME: %s\\n      SPRINGDOC_SWAGGER_UI_ENABLED: \"false\"\\n      MANAGEMENT_HEALTH_REDIS_ENABLED: \"false\"\\n    networks:\\n      - planwith-net\\n' \"" + $svc + "\" \"" + $svc + "\" \"" + $short + "\" \"" + $svc + "\" >> docker-compose.aws.yml; fi"),
-              ("bash ./scripts/deploy-aws.sh " + $svc)
-            ]
-          }' > /tmp/ssm-params.json
-
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "${INSTANCE_ID}" \
-            --document-name "AWS-RunShellScript" \
-            --comment "planwith deploy ${SERVICE_NAME}" \
-            --timeout-seconds 600 \
-            --parameters file:///tmp/ssm-params.json \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM CommandId=${COMMAND_ID}"
-
-          for _ in $(seq 1 90); do
-            STATUS=$(aws ssm get-command-invocation \
-              --command-id "${COMMAND_ID}" \
-              --instance-id "${INSTANCE_ID}" \
-              --query "Status" \
-              --output text 2>/dev/null || echo "Pending")
-            echo "SSM Status=${STATUS}"
-            case "${STATUS}" in
-              Success)
-                aws ssm get-command-invocation \
-                  --command-id "${COMMAND_ID}" \
-                  --instance-id "${INSTANCE_ID}" \
-                  --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
-                  --output json
-                exit 0
-                ;;
-              Failed|Cancelled|TimedOut)
-                aws ssm get-command-invocation \
-                  --command-id "${COMMAND_ID}" \
-                  --instance-id "${INSTANCE_ID}" \
-                  --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
-                  --output json
-                exit 1
-                ;;
-            esac
-            sleep 5
-          done
-
-          echo "SSM command wait timed out"
-          exit 1
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        with:
+          host: ${{ vars.AWS_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.PLANWITH_AWS_SSH_KEY }}
+          command_timeout: 10m
+          envs: SERVICE_NAME
+          script: |
+            set -eu
+            cd /opt/planwith
+            sudo sed -i 's/\r$//' scripts/deploy-aws.sh scripts/ensure-databases.sh || true
+            sudo chmod +x scripts/deploy-aws.sh scripts/ensure-databases.sh 2>/dev/null || true
+            sudo bash ./scripts/deploy-aws.sh "$SERVICE_NAME"
