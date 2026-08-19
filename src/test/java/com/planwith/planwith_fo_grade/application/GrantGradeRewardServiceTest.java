@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -102,6 +104,38 @@ class GrantGradeRewardServiceTest {
 
 		assertThat(historyPort.size()).isEqualTo(1);
 		assertThat(outboxPort.messages).hasSize(1);
+	}
+
+	@ParameterizedTest(name = "{0} → {1}")
+	@CsvSource({
+			"ROOKIE, 10",
+			"LEAF, 20",
+			"TRAVELER, 30",
+			"EXPLORER, 50",
+			"ADVENTURE, 70",
+			"PLANWITH, 120"
+	})
+	void grantsMonthlyTokenAmountByGrade(GradeCode gradeCode, long expectedTokenAmount) {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		InMemoryGradeRewardHistoryPort historyPort = new InMemoryGradeRewardHistoryPort();
+		GrantGradeRewardService service = new GrantGradeRewardService(
+				assigned(criteriaPort, gradeCode),
+				criteriaPort,
+				historyPort,
+				new InMemoryGradeEventOutboxPort(),
+				objectMapper
+		);
+
+		service.grant(new GrantGradeRewardCommand(
+				memberUuid,
+				gradeCode.name(),
+				GradeRewardGrantedEvent.REWARD_TYPE_MONTHLY_FREE_TOKEN,
+				"2026-08"
+		));
+
+		assertThat(historyPort.findByMemberUuidAndRewardMonth(MemberUuid.from(memberUuid), "2026-08")
+				.orElseThrow()
+				.tokenAmount()).isEqualTo(expectedTokenAmount);
 	}
 
 	@Test

@@ -3,12 +3,28 @@ package com.planwith.planwith_fo_grade.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
 import com.planwith.planwith_fo_grade.domain.model.GradeCriteriaCatalog;
 
 class GradeBenefitSummaryTest {
+
+	@ParameterizedTest(name = "{0} → {1}")
+	@CsvSource({
+			"ROOKIE, 10",
+			"LEAF, 20",
+			"TRAVELER, 30",
+			"EXPLORER, 50",
+			"ADVENTURE, 70",
+			"PLANWITH, 120"
+	})
+	void returnsMonthlyTokenAmountByGrade(GradeCode gradeCode, int expectedTokenAmount) {
+		assertThat(GradeBenefitSummary.from(grade(gradeCode).benefits()).monthlyTokenAmount())
+				.isEqualTo(expectedTokenAmount);
+	}
 
 	@Test
 	void summarizesRookieAsTokenOnly() {
