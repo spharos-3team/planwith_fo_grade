@@ -92,3 +92,6 @@ grade:
   cache:
     key-prefix: ${GRADE_CACHE_KEY_PREFIX:grade:member}
     ttl: ${GRADE_CACHE_TTL:10m}
+  reward:
+    monthly-enabled: ${GRADE_REWARD_MONTHLY_ENABLED:true}
+    monthly-cron: ${GRADE_REWARD_MONTHLY_CRON:0 0 0 1 * *}

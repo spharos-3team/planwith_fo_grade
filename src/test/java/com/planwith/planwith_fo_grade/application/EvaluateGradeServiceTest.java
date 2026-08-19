@@ -221,6 +221,11 @@ class EvaluateGradeServiceTest {
 		}
 
 		@Override
+		public List<GradeMember> findAllActive() {
+			return members.values().stream().filter(GradeMember::isActive).toList();
+		}
+
+		@Override
 		public GradeMember save(GradeMember member) {
 			saveCount++;
 			members.put(member.memberUuid().value(), member);

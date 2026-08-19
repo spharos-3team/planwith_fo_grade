@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.planwith.planwith_fo_grade.application.event.GradeChangedEvent;
+import com.planwith.planwith_fo_grade.application.event.GradeRewardGrantedEvent;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventPublisher;
 import com.planwith.planwith_fo_grade.config.GradeKafkaProperties;
 import com.planwith.planwith_fo_grade.config.GradeOutboxProperties;
@@ -76,7 +77,8 @@ public class GradeOutboxRelay {
 	}
 
 	private String topicFor(String eventType) {
-		if (GradeEventType.GRADE_REWARD_GRANTED.name().equals(eventType)) {
+		if (GradeRewardGrantedEvent.EVENT_TYPE.equals(eventType)
+				|| GradeEventType.GRADE_REWARD_GRANTED.name().equals(eventType)) {
 			return kafkaProperties.getTopics().getGradeRewardGranted();
 		}
 		if (!GradeChangedEvent.EVENT_TYPE.equals(eventType)
