@@ -57,6 +57,7 @@ class GradeInboundEventConsumerTest {
 		assertThat(useCase.commands).extracting(RecordGradeMetricCommand::delta)
 				.containsExactly(1L, -1L, 1L, -1L, 1L, -1L);
 		assertThat(useCase.commands.get(0).memberUuid()).isEqualTo(authorUuid);
+		assertThat(useCase.commands.get(0).eventUuid()).isNotBlank();
 		assertThat(useCase.commands.get(2).memberUuid()).isEqualTo(followeeUuid);
 		assertThat(useCase.commands.get(4).memberUuid()).isEqualTo(ownerUuid);
 	}
@@ -69,6 +70,9 @@ class GradeInboundEventConsumerTest {
 		consumer.consume("planwith.story.created", "{not-json");
 		consumer.consume("planwith.like.created", """
 				{"eventUuid":"%s","targetType":"STORY","targetUuid":"%s"}
+				""".formatted(UUID.randomUUID(), UUID.randomUUID()));
+		consumer.consume("planwith.story.created", """
+				{"memberUuid":"%s","storyUuid":"%s"}
 				""".formatted(UUID.randomUUID(), UUID.randomUUID()));
 
 		assertThat(useCase.commands).isEmpty();

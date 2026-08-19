@@ -76,7 +76,7 @@ public final class MemberGradeMetric {
 			long sourceVersion,
 			LocalDateTime synchronizedAt
 	) {
-		if (sourceVersion < this.sourceVersion) {
+		if (sourceVersion <= this.sourceVersion) {
 			return this;
 		}
 		if (newValue < 0) {

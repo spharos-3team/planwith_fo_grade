@@ -12,6 +12,7 @@ public record LikeCreatedEventPayload(
 		String targetType,
 		String targetUuid,
 		String targetOwnerUuid,
-		String occurredAt
+		String occurredAt,
+		Long sourceVersion
 ) {
 }

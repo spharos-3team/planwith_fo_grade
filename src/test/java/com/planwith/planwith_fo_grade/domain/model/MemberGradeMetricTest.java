@@ -40,6 +40,18 @@ class MemberGradeMetricTest {
 	}
 
 	@Test
+	void ignoresDuplicateSourceVersion() {
+		MemberGradeMetric metric = MemberGradeMetric.reconstitute(
+				1L, memberUuid, MemberMetricType.STORY_COUNT, 10L, "story-service", 5L, syncedAt
+		);
+
+		MemberGradeMetric duplicate = metric.synchronize(99L, "story-service", 5L, syncedAt.plusMinutes(1));
+
+		assertThat(duplicate).isSameAs(metric);
+		assertThat(duplicate.currentValue()).isEqualTo(10L);
+	}
+
+	@Test
 	void ignoresStaleSourceVersion() {
 		MemberGradeMetric metric = MemberGradeMetric.reconstitute(
 				1L, memberUuid, MemberMetricType.STORY_COUNT, 10L, "story-service", 5L, syncedAt
