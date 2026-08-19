@@ -9,7 +9,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:
@@ -35,6 +35,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     listener:
+      ack-mode: record
       auto-startup: ${GRADE_KAFKA_CONSUMER_ENABLED:true}
 
 server:
@@ -89,6 +90,10 @@ grade:
     relay-interval: ${GRADE_OUTBOX_RELAY_INTERVAL:5s}
     relay-initial-delay: ${GRADE_OUTBOX_RELAY_INITIAL_DELAY:5s}
     send-timeout: ${GRADE_OUTBOX_SEND_TIMEOUT:10s}
+    max-retry: ${GRADE_OUTBOX_MAX_RETRY:10}
+    backoff-initial: ${GRADE_OUTBOX_BACKOFF_INITIAL:5s}
+    backoff-multiplier: ${GRADE_OUTBOX_BACKOFF_MULTIPLIER:2}
+    backoff-max: ${GRADE_OUTBOX_BACKOFF_MAX:5m}
   cache:
     key-prefix: ${GRADE_CACHE_KEY_PREFIX:grade:member}
     ttl: ${GRADE_CACHE_TTL:10m}

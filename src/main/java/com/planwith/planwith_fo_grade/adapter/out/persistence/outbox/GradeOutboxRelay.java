@@ -1,5 +1,6 @@
 package com.planwith.planwith_fo_grade.adapter.out.persistence.outbox;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +31,7 @@ public class GradeOutboxRelay {
 	private final GradeEventPublisher publisher;
 	private final GradeOutboxProperties outboxProperties;
 	private final GradeKafkaProperties kafkaProperties;
+	private final Clock clock;
 
 	public GradeOutboxRelay(
 			SpringDataGradeOutboxRepository repository,
@@ -37,10 +39,21 @@ public class GradeOutboxRelay {
 			GradeOutboxProperties outboxProperties,
 			GradeKafkaProperties kafkaProperties
 	) {
+		this(repository, publisher, outboxProperties, kafkaProperties, Clock.systemUTC());
+	}
+
+	GradeOutboxRelay(
+			SpringDataGradeOutboxRepository repository,
+			GradeEventPublisher publisher,
+			GradeOutboxProperties outboxProperties,
+			GradeKafkaProperties kafkaProperties,
+			Clock clock
+	) {
 		this.repository = repository;
 		this.publisher = publisher;
 		this.outboxProperties = outboxProperties;
 		this.kafkaProperties = kafkaProperties;
+		this.clock = clock;
 	}
 
 	@Scheduled(
@@ -52,13 +65,16 @@ public class GradeOutboxRelay {
 		int batchSize = outboxProperties.getRelayBatchSize() > 0
 				? outboxProperties.getRelayBatchSize()
 				: 50;
-		List<GradeOutboxJpaEntity> unpublished = repository.findUnpublished(PageRequest.of(0, batchSize));
+		Instant now = clock.instant();
+		List<GradeOutboxJpaEntity> unpublished = repository.findDueUnpublished(now, PageRequest.of(0, batchSize));
 		for (GradeOutboxJpaEntity outbox : unpublished) {
-			publish(outbox);
+			if (outbox.isDue(now)) {
+				publish(outbox, now);
+			}
 		}
 	}
 
-	private void publish(GradeOutboxJpaEntity outbox) {
+	private void publish(GradeOutboxJpaEntity outbox, Instant now) {
 		try {
 			publisher.publish(
 							topicFor(outbox.eventType()),
@@ -66,18 +82,32 @@ public class GradeOutboxRelay {
 							outbox.payload()
 					)
 					.get(sendTimeoutMillis(), TimeUnit.MILLISECONDS);
-			outbox.markPublished(Instant.now());
+			outbox.markPublished(now);
 			log.info("GradeOutboxRelay : publish : 등급 Outbox 발행 완료 - eventUuid={}, eventType={}",
 					outbox.eventUuid(), outbox.eventType());
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
-			outbox.increaseRetryCount();
-			log.warn("GradeOutboxRelay : publish : 등급 Outbox 발행 중단 - eventUuid={}", outbox.eventUuid());
-		} catch (Exception exception) {
-			outbox.increaseRetryCount();
-			log.warn("GradeOutboxRelay : publish : 등급 Outbox 발행 실패 - eventUuid={}, retryCount={}",
+			recordFailure(outbox, now);
+			log.warn("GradeOutboxRelay : publish : 등급 Outbox 발행 중단 - eventUuid={}, retryCount={}",
 					outbox.eventUuid(), outbox.retryCount());
+		} catch (Exception exception) {
+			recordFailure(outbox, now);
+			if (outboxProperties.retryLimitReached(outbox.retryCount())) {
+				log.error(
+						"GradeOutboxRelay : publish : 등급 Outbox 최대 재시도 이후에도 미발행 유지 - eventUuid={}, retryCount={}",
+						outbox.eventUuid(),
+						outbox.retryCount()
+				);
+			} else {
+				log.warn("GradeOutboxRelay : publish : 등급 Outbox 발행 실패 - eventUuid={}, retryCount={}",
+						outbox.eventUuid(), outbox.retryCount());
+			}
 		}
+	}
+
+	private void recordFailure(GradeOutboxJpaEntity outbox, Instant now) {
+		int nextRetryCount = outbox.retryCount() + 1;
+		outbox.recordPublishFailure(outboxProperties.nextRetryAt(now, nextRetryCount));
 	}
 
 	private String topicFor(String eventType) {

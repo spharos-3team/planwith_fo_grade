@@ -1,6 +1,7 @@
 package com.planwith.planwith_fo_grade.adapter.in.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +77,23 @@ class GradeInboundEventConsumerTest {
 				""".formatted(UUID.randomUUID(), UUID.randomUUID()));
 
 		assertThat(useCase.commands).isEmpty();
+	}
+
+	@Test
+	void rethrowsUnexpectedFailureSoKafkaCanRetry() {
+		GradeInboundEventConsumer consumer = new GradeInboundEventConsumer(
+				command -> {
+					throw new RuntimeException("database unavailable");
+				},
+				objectMapper,
+				kafkaProperties
+		);
+
+		assertThatThrownBy(() -> consumer.consume("planwith.story.created", """
+				{"eventUuid":"%s","memberUuid":"%s","storyUuid":"%s"}
+				""".formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessage("database unavailable");
 	}
 
 	private static final class CapturingRecordGradeMetricUseCase implements RecordGradeMetricUseCase {

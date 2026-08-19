@@ -1,6 +1,7 @@
 package com.planwith.planwith_fo_grade.adapter.in.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -42,6 +43,23 @@ class MemberCreatedEventConsumerTest {
 		consumer.consume("planwith.member.created", "{\"eventUuid\":\"%s\"}".formatted(UUID.randomUUID()));
 
 		assertThat(useCase.commands).isEmpty();
+	}
+
+	@Test
+	void rethrowsUnexpectedFailureSoKafkaCanRetry() {
+		MemberCreatedEventConsumer consumer = new MemberCreatedEventConsumer(
+				command -> {
+					throw new RuntimeException("database unavailable");
+				},
+				objectMapper
+		);
+		String payload = """
+				{"eventUuid":"%s","memberUuid":"%s","eventType":"MemberCreated"}
+				""".formatted(UUID.randomUUID(), UUID.randomUUID());
+
+		assertThatThrownBy(() -> consumer.consume("planwith.member.created", payload))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessage("database unavailable");
 	}
 
 	private static final class CapturingAssignInitialGradeUseCase implements AssignInitialGradeUseCase {

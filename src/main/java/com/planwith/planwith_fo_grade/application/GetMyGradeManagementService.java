@@ -67,7 +67,7 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 		MemberUuid memberUuid = MemberUuid.from(memberUuidValue);
 		log.info("GetMyGradeManagementService : get : 내 등급 관리 조회 시작 - memberUuid={}", memberUuid);
 
-		Optional<GradeManagementView> cached = gradeQueryCachePort.findByMemberUuid(memberUuid.toString());
+		Optional<GradeManagementView> cached = findCached(memberUuid);
 		if (cached.isPresent()) {
 			log.info("GetMyGradeManagementService : get : 조회 캐시 HIT - memberUuid={}", memberUuid);
 			return cached.get();
@@ -75,7 +75,7 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 
 		log.info("GetMyGradeManagementService : get : 조회 캐시 MISS, MySQL 조회 시작 - memberUuid={}", memberUuid);
 		GradeManagementView view = loadFromDatabase(memberUuid);
-		gradeQueryCachePort.save(memberUuid.toString(), view);
+		saveCache(memberUuid, view);
 		log.info(
 				"GetMyGradeManagementService : get : 내 등급 관리 조회 완료 - memberUuid={}, currentGradeCode={}, nextGradeCode={}",
 				memberUuid,
@@ -83,6 +83,24 @@ public class GetMyGradeManagementService implements GetMyGradeManagementQueryUse
 				view.nextGrade() == null ? null : view.nextGrade().code()
 		);
 		return view;
+	}
+
+	private Optional<GradeManagementView> findCached(MemberUuid memberUuid) {
+		try {
+			return gradeQueryCachePort.findByMemberUuid(memberUuid.toString());
+		} catch (RuntimeException exception) {
+			log.warn("GetMyGradeManagementService : get : Redis 장애로 MySQL 조회로 전환 - memberUuid={}", memberUuid);
+			return Optional.empty();
+		}
+	}
+
+	private void saveCache(MemberUuid memberUuid, GradeManagementView view) {
+		try {
+			gradeQueryCachePort.save(memberUuid.toString(), view);
+		} catch (RuntimeException exception) {
+			log.warn("GetMyGradeManagementService : get : Redis 저장 실패, MySQL 조회 결과는 유지 - memberUuid={}",
+					memberUuid);
+		}
 	}
 
 	private GradeManagementView loadFromDatabase(MemberUuid memberUuid) {

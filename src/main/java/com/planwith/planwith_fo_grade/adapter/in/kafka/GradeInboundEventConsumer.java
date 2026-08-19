@@ -71,6 +71,9 @@ public class GradeInboundEventConsumer {
 			recordGradeMetricUseCase.record(command);
 		} catch (IllegalArgumentException exception) {
 			log.error("GradeInboundEventConsumer : consume : 잘못된 Metric 이벤트로 갱신을 생략 - topic={}", topic);
+		} catch (RuntimeException exception) {
+			log.error("GradeInboundEventConsumer : consume : Metric 이벤트 처리 실패로 재처리 대기 - topic={}", topic);
+			throw exception;
 		}
 	}
 

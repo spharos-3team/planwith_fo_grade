@@ -176,6 +176,24 @@ class GetMyGradeManagementServiceTest {
 		assertThat(view.currentBenefits().monthlyTokenAmount()).isEqualTo(20);
 	}
 
+	@Test
+	void loadsFromMysqlWhenRedisCacheFails() {
+		InMemoryGradeCriteriaPort criteriaPort = InMemoryGradeCriteriaPort.withCatalog();
+		GetMyGradeManagementService service = new GetMyGradeManagementService(
+				assigned(criteriaPort, GradeCode.LEAF),
+				criteriaPort,
+				metrics(7L, 62L, 410L),
+				new FailingGradeQueryCacheAdapter()
+		);
+
+		GradeManagementView view = service.get(memberUuid);
+
+		assertThat(view.currentGrade().code()).isEqualTo("LEAF");
+		assertThat(view.currentMetrics().storyCount()).isEqualTo(7L);
+		assertThat(view.nextGrade().code()).isEqualTo("TRAVELER");
+		assertThat(view.currentBenefits().monthlyTokenAmount()).isEqualTo(20);
+	}
+
 	private GetMyGradeManagementService service(
 			GradeMemberPort memberPort,
 			GradeCriteriaPort criteriaPort,
@@ -347,6 +365,25 @@ class GetMyGradeManagementServiceTest {
 
 		private static String key(MemberUuid memberUuid, MemberMetricType metricType) {
 			return memberUuid + ":" + metricType;
+		}
+	}
+
+	private static final class FailingGradeQueryCacheAdapter
+			implements com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort {
+
+		@Override
+		public Optional<GradeManagementView> findByMemberUuid(String memberUuid) {
+			throw new RuntimeException("Redis unavailable");
+		}
+
+		@Override
+		public void save(String memberUuid, GradeManagementView view) {
+			throw new RuntimeException("Redis unavailable");
+		}
+
+		@Override
+		public void evict(String memberUuid) {
+			throw new RuntimeException("Redis unavailable");
 		}
 	}
 }

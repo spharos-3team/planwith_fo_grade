@@ -111,7 +111,16 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 				currentGrade.gradeCode(),
 				targetGrade.gradeCode()
 		);
-		gradeQueryCachePort.evict(saved.memberUuid().toString());
+		evictQueryCache(saved.memberUuid().toString());
+	}
+
+	private void evictQueryCache(String memberUuid) {
+		try {
+			gradeQueryCachePort.evict(memberUuid);
+		} catch (RuntimeException exception) {
+			log.warn("ChangeMemberGradeService : change : Redis 캐시 삭제 실패, MySQL 등급 상태는 유지 - memberUuid={}",
+					memberUuid);
+		}
 	}
 
 	private Grade requireGrade(GradeCode gradeCode) {

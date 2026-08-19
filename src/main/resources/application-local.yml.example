@@ -31,3 +31,6 @@ grade:
     consumer-enabled: false
   outbox:
     enabled: false
+    max-retry: 10
+    backoff-initial: 5s
+    backoff-max: 5m

@@ -23,6 +23,7 @@ import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
 import com.planwith.planwith_fo_grade.application.command.RecordGradeMetricCommand;
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
 import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.port.out.ProcessedGradeEventPort;
@@ -208,6 +209,24 @@ class RecordGradeMetricServiceTest {
 		assertThat(cache.contains(memberUuid)).isTrue();
 	}
 
+	@Test
+	void keepsMetricUpdateWhenCacheEvictFails() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				new FailingGradeQueryCacheAdapter(),
+				emptyEvaluation()
+		);
+
+		service.record(command(MemberMetricType.STORY_COUNT.name(), 1L));
+
+		assertThat(port.findByMemberUuidAndMetricType(
+				MemberUuid.from(memberUuid),
+				MemberMetricType.STORY_COUNT
+		).orElseThrow().currentValue()).isEqualTo(1L);
+	}
+
 	private GradeManagementView cachedView() {
 		return new GradeManagementView(
 				new GradeManagementView.CurrentGradeView("ROOKIE", "🌱 새싹", 1, List.of()),
@@ -308,6 +327,24 @@ class RecordGradeMetricServiceTest {
 		@Override
 		public void save(ProcessedGradeEvent event) {
 			processed.add(event.eventUuid());
+		}
+	}
+
+	private static final class FailingGradeQueryCacheAdapter implements GradeQueryCachePort {
+
+		@Override
+		public Optional<GradeManagementView> findByMemberUuid(String memberUuid) {
+			throw new RuntimeException("Redis unavailable");
+		}
+
+		@Override
+		public void save(String memberUuid, GradeManagementView view) {
+			throw new RuntimeException("Redis unavailable");
+		}
+
+		@Override
+		public void evict(String memberUuid) {
+			throw new RuntimeException("Redis unavailable");
 		}
 	}
 }
