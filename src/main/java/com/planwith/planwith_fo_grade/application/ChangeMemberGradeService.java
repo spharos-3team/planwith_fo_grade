@@ -19,6 +19,7 @@ import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeMemberPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeOutboxMessage;
+import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
 import com.planwith.planwith_fo_grade.domain.exception.InvalidGradeException;
 import com.planwith.planwith_fo_grade.domain.model.Grade;
 import com.planwith.planwith_fo_grade.domain.model.GradeCode;
@@ -34,17 +35,20 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 	private final GradeMemberPort gradeMemberPort;
 	private final GradeCriteriaPort gradeCriteriaPort;
 	private final GradeEventOutboxPort gradeEventOutboxPort;
+	private final GradeQueryCachePort gradeQueryCachePort;
 	private final ObjectMapper objectMapper;
 
 	public ChangeMemberGradeService(
 			GradeMemberPort gradeMemberPort,
 			GradeCriteriaPort gradeCriteriaPort,
 			GradeEventOutboxPort gradeEventOutboxPort,
+			GradeQueryCachePort gradeQueryCachePort,
 			ObjectMapper objectMapper
 	) {
 		this.gradeMemberPort = gradeMemberPort;
 		this.gradeCriteriaPort = gradeCriteriaPort;
 		this.gradeEventOutboxPort = gradeEventOutboxPort;
+		this.gradeQueryCachePort = gradeQueryCachePort;
 		this.objectMapper = objectMapper;
 	}
 
@@ -105,6 +109,7 @@ public class ChangeMemberGradeService implements ChangeMemberGradeUseCase {
 				currentGrade.gradeCode(),
 				targetGrade.gradeCode()
 		);
+		gradeQueryCachePort.evict(saved.memberUuid().toString());
 	}
 
 	private Grade requireGrade(GradeCode gradeCode) {

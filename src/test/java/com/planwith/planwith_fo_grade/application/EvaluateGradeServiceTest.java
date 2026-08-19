@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.planwith.planwith_fo_grade.adapter.out.redis.InMemoryGradeQueryCacheAdapter;
 import com.planwith.planwith_fo_grade.application.command.EvaluateGradeCommand;
 import com.planwith.planwith_fo_grade.application.port.out.GradeCriteriaPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeEventOutboxPort;
@@ -143,7 +144,13 @@ class EvaluateGradeServiceTest {
 				memberPort,
 				criteriaPort,
 				metricPort,
-				new ChangeMemberGradeService(memberPort, criteriaPort, outboxPort, new ObjectMapper())
+				new ChangeMemberGradeService(
+						memberPort,
+						criteriaPort,
+						outboxPort,
+						new InMemoryGradeQueryCacheAdapter(),
+						new ObjectMapper()
+				)
 		);
 	}
 
