@@ -9,7 +9,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         jdbc:
@@ -85,7 +85,7 @@ grade:
       grade-changed: ${GRADE_TOPIC_GRADE_CHANGED:planwith.grade.changed}
       grade-reward-granted: ${GRADE_TOPIC_GRADE_REWARD_GRANTED:planwith.grade.reward-granted}
   outbox:
-    enabled: ${GRADE_OUTBOX_ENABLED:true}
+    enabled: ${GRADE_OUTBOX_ENABLED:false}
     relay-batch-size: ${GRADE_OUTBOX_RELAY_BATCH_SIZE:50}
     relay-interval: ${GRADE_OUTBOX_RELAY_INTERVAL:5s}
     relay-initial-delay: ${GRADE_OUTBOX_RELAY_INITIAL_DELAY:5s}
