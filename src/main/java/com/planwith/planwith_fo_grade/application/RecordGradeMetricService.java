@@ -16,6 +16,7 @@ import com.planwith.planwith_fo_grade.application.command.RecordGradeMetricComma
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.in.RecordGradeMetricUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeUpdateNotificationPort;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
 import com.planwith.planwith_fo_grade.application.port.out.ProcessedGradeEventPort;
 import com.planwith.planwith_fo_grade.domain.model.MemberGradeMetric;
@@ -31,17 +32,20 @@ public class RecordGradeMetricService implements RecordGradeMetricUseCase {
 	private final MemberGradeMetricPort memberGradeMetricPort;
 	private final ProcessedGradeEventPort processedGradeEventPort;
 	private final GradeQueryCachePort gradeQueryCachePort;
+	private final GradeUpdateNotificationPort gradeUpdateNotificationPort;
 	private final ObjectProvider<EvaluateGradeUseCase> evaluateGradeUseCase;
 
 	public RecordGradeMetricService(
 			MemberGradeMetricPort memberGradeMetricPort,
 			ProcessedGradeEventPort processedGradeEventPort,
 			GradeQueryCachePort gradeQueryCachePort,
+			GradeUpdateNotificationPort gradeUpdateNotificationPort,
 			ObjectProvider<EvaluateGradeUseCase> evaluateGradeUseCase
 	) {
 		this.memberGradeMetricPort = memberGradeMetricPort;
 		this.processedGradeEventPort = processedGradeEventPort;
 		this.gradeQueryCachePort = gradeQueryCachePort;
+		this.gradeUpdateNotificationPort = gradeUpdateNotificationPort;
 		this.evaluateGradeUseCase = evaluateGradeUseCase;
 	}
 
@@ -111,6 +115,16 @@ public class RecordGradeMetricService implements RecordGradeMetricUseCase {
 		);
 		evictQueryCache(memberUuid.toString());
 		triggerGradeEvaluation(memberUuid);
+		notifyGradeUpdated(memberUuid.toString());
+	}
+
+	private void notifyGradeUpdated(String memberUuid) {
+		try {
+			gradeUpdateNotificationPort.notifyUpdated(memberUuid);
+		} catch (RuntimeException exception) {
+			log.warn("RecordGradeMetricService : record : 등급 실시간 알림 등록 실패, Metric 상태는 유지 - memberUuid={}",
+					memberUuid);
+		}
 	}
 
 	private void evictQueryCache(String memberUuid) {

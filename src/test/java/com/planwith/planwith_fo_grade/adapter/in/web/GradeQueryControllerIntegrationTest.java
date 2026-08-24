@@ -3,12 +3,15 @@ package com.planwith.planwith_fo_grade.adapter.in.web;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -233,6 +236,23 @@ class GradeQueryControllerIntegrationTest {
 	@Test
 	void returnsUnauthorizedWhenIntegratedManagementHeaderIsMissing() throws Exception {
 		mockMvc.perform(get("/api/grade/grades/me/management"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
+	}
+
+	@Test
+	void subscribesToMyGradeUpdateEvents() throws Exception {
+		String memberUuid = UUID.randomUUID().toString();
+
+		mockMvc.perform(get("/api/grade/grades/me/events").header("X-Auth-User-Id", memberUuid))
+				.andExpect(status().isOk())
+				.andExpect(request().asyncStarted())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+	}
+
+	@Test
+	void returnsUnauthorizedWhenGradeUpdateEventHeaderIsMissing() throws Exception {
+		mockMvc.perform(get("/api/grade/grades/me/events"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error.code").value("AUTHENTICATION_REQUIRED"));
 	}

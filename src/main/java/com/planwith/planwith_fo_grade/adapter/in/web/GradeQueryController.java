@@ -6,10 +6,13 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.http.CacheControl;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.ApiResponse;
 import com.planwith.planwith_fo_grade.adapter.in.web.dto.CurrentBenefitSummaryResponse;
@@ -47,17 +50,33 @@ public class GradeQueryController {
 	private final GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase;
 	private final GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase;
 	private final GetGradeManagementPageQueryUseCase getGradeManagementPageQueryUseCase;
+	private final GradeUpdateSseHub gradeUpdateSseHub;
 
 	public GradeQueryController(
 			GetAllGradesQueryUseCase getAllGradesQueryUseCase,
 			GetMyGradeManagementQueryUseCase getMyGradeManagementQueryUseCase,
 			GetCurrentBenefitsQueryUseCase getCurrentBenefitsQueryUseCase,
-			GetGradeManagementPageQueryUseCase getGradeManagementPageQueryUseCase
+			GetGradeManagementPageQueryUseCase getGradeManagementPageQueryUseCase,
+			GradeUpdateSseHub gradeUpdateSseHub
 	) {
 		this.getAllGradesQueryUseCase = getAllGradesQueryUseCase;
 		this.getMyGradeManagementQueryUseCase = getMyGradeManagementQueryUseCase;
 		this.getCurrentBenefitsQueryUseCase = getCurrentBenefitsQueryUseCase;
 		this.getGradeManagementPageQueryUseCase = getGradeManagementPageQueryUseCase;
+		this.gradeUpdateSseHub = gradeUpdateSseHub;
+	}
+
+	// 내 등급 실시간 변경 알림 구독
+	@GetMapping(path = "/grades/me/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+	public ResponseEntity<SseEmitter> subscribeMyGradeUpdates(
+			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
+	) {
+		log.info("GradeQueryController : GET subscribeMyGradeUpdates : 내 등급 실시간 변경 알림 구독 요청 - memberUuid={}",
+				memberUuid);
+		return ResponseEntity.ok()
+				.cacheControl(CacheControl.noStore())
+				.header("X-Accel-Buffering", "no")
+				.body(gradeUpdateSseHub.subscribe(memberUuid.toString()));
 	}
 
 	// 전체 등급표 조회

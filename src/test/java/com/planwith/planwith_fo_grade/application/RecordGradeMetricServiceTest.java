@@ -25,6 +25,7 @@ import com.planwith.planwith_fo_grade.application.command.RecordGradeMetricComma
 import com.planwith.planwith_fo_grade.application.port.in.EvaluateGradeUseCase;
 import com.planwith.planwith_fo_grade.application.port.out.MemberGradeMetricPort;
 import com.planwith.planwith_fo_grade.application.port.out.GradeQueryCachePort;
+import com.planwith.planwith_fo_grade.application.port.out.GradeUpdateNotificationPort;
 import com.planwith.planwith_fo_grade.application.query.CurrentBenefitSummaryView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.port.out.ProcessedGradeEventPort;
@@ -153,6 +154,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				new InMemoryGradeQueryCacheAdapter(),
+				memberUuid -> { },
 				evaluateProvider(evaluateGradeUseCase)
 		);
 
@@ -166,6 +168,23 @@ class RecordGradeMetricServiceTest {
 	}
 
 	@Test
+	void notifiesSubscriberAfterMetricUpdate() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		GradeUpdateNotificationPort notificationPort = mock(GradeUpdateNotificationPort.class);
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
+				notificationPort,
+				emptyEvaluation()
+		);
+
+		service.record(command(MemberMetricType.FOLLOWER_COUNT.name(), 1L));
+
+		verify(notificationPort).notifyUpdated(memberUuid);
+	}
+
+	@Test
 	void doesNotReevaluateWhenDuplicateEventIsIgnored() {
 		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
 		EvaluateGradeUseCase evaluateGradeUseCase = mock(EvaluateGradeUseCase.class);
@@ -173,6 +192,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				new InMemoryGradeQueryCacheAdapter(),
+				memberUuid -> { },
 				evaluateProvider(evaluateGradeUseCase)
 		);
 		String eventUuid = UUID.randomUUID().toString();
@@ -181,6 +201,44 @@ class RecordGradeMetricServiceTest {
 		service.record(command(eventUuid, MemberMetricType.STORY_COUNT.name(), 1L, null));
 
 		verify(evaluateGradeUseCase, times(1)).evaluate(new EvaluateGradeCommand(memberUuid));
+	}
+
+	@Test
+	void doesNotNotifySubscriberWhenDuplicateEventIsIgnored() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		GradeUpdateNotificationPort notificationPort = mock(GradeUpdateNotificationPort.class);
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
+				notificationPort,
+				emptyEvaluation()
+		);
+		String eventUuid = UUID.randomUUID().toString();
+
+		service.record(command(eventUuid, MemberMetricType.STORY_COUNT.name(), 1L, null));
+		service.record(command(eventUuid, MemberMetricType.STORY_COUNT.name(), 1L, null));
+
+		verify(notificationPort, times(1)).notifyUpdated(memberUuid);
+	}
+
+	@Test
+	void keepsMetricUpdateWhenNotificationRegistrationFails() {
+		InMemoryMemberGradeMetricPort port = new InMemoryMemberGradeMetricPort();
+		GradeUpdateNotificationPort notificationPort = mock(GradeUpdateNotificationPort.class);
+		doThrow(new RuntimeException("notification unavailable"))
+				.when(notificationPort).notifyUpdated(memberUuid);
+		RecordGradeMetricService service = new RecordGradeMetricService(
+				port,
+				new InMemoryProcessedGradeEventPort(),
+				new InMemoryGradeQueryCacheAdapter(),
+				notificationPort,
+				emptyEvaluation()
+		);
+
+		service.record(command(MemberMetricType.STORY_COUNT.name(), 1L));
+
+		assertThat(value(port, MemberMetricType.STORY_COUNT)).isEqualTo(1L);
 	}
 
 	@Test
@@ -193,6 +251,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				new InMemoryGradeQueryCacheAdapter(),
+				memberUuid -> { },
 				evaluateProvider(evaluateGradeUseCase)
 		);
 
@@ -213,6 +272,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				cache,
+				memberUuid -> { },
 				emptyEvaluation()
 		);
 
@@ -229,6 +289,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				cache,
+				memberUuid -> { },
 				emptyEvaluation()
 		);
 		String eventUuid = UUID.randomUUID().toString();
@@ -247,6 +308,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				new InMemoryProcessedGradeEventPort(),
 				new FailingGradeQueryCacheAdapter(),
+				memberUuid -> { },
 				emptyEvaluation()
 		);
 
@@ -290,6 +352,7 @@ class RecordGradeMetricServiceTest {
 				port,
 				processedGradeEventPort,
 				new InMemoryGradeQueryCacheAdapter(),
+				memberUuid -> { },
 				emptyEvaluation()
 		);
 	}
