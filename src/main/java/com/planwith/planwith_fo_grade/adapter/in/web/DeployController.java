@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.planwith.planwith_fo_grade.config.DeployProperties;
 
 @RestController
-@RequestMapping("/api/grade")
+@RequestMapping({"/api/grade", "/api/planwith-fo-grade"})
 public class DeployController {
 
 	private static final Logger log = LoggerFactory.getLogger(DeployController.class);

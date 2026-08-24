@@ -208,7 +208,7 @@ class GradeEventStormingIntegrationTest {
 		repeat(10, () -> metricConsumer.consume("planwith.follow.created", followCreatedPayload(memberUuid)));
 		repeat(30, () -> metricConsumer.consume("planwith.like.created", likeCreatedPayload(memberUuid, UUID.randomUUID().toString())));
 
-		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.grades.length()").value(6))
 				.andExpect(jsonPath("$.data.currentGrade.code").value("LEAF"))

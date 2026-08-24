@@ -36,8 +36,10 @@ import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView.MetricProgressView;
 
 @RestController
-@RequestMapping("/api/grade")
+@RequestMapping({"/api/grade", "/api/planwith-fo-grade"})
 public class GradeQueryController {
+
+	private static final String AUTHENTICATED_MEMBER_HEADER = "X-Auth-User-Id";
 
 	private static final Logger log = LoggerFactory.getLogger(GradeQueryController.class);
 
@@ -72,7 +74,7 @@ public class GradeQueryController {
 	// 내 등급 관리 조회
 	@GetMapping("/grades/me")
 	public ResponseEntity<ApiResponse<GradeManagementResponse>> getMyGradeManagement(
-			@RequestHeader("X-Member-UUID") UUID memberUuid
+			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyGradeManagement : 내 등급 관리 조회 요청 - memberUuid={}", memberUuid);
 		GradeManagementResponse response = toManagementResponse(getMyGradeManagementQueryUseCase.get(memberUuid.toString()));
@@ -83,7 +85,7 @@ public class GradeQueryController {
 	// 등급 관리 통합 조회
 	@GetMapping("/grades/me/management")
 	public ResponseEntity<ApiResponse<GradeManagementPageResponse>> getMyGradeManagementPage(
-			@RequestHeader("X-Member-UUID") UUID memberUuid
+			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyGradeManagementPage : 등급 관리 통합 조회 요청 - memberUuid={}", memberUuid);
 		GradeManagementPageResponse response = toPageResponse(
@@ -96,7 +98,7 @@ public class GradeQueryController {
 	// 현재 혜택 조회
 	@GetMapping("/grades/me/benefits")
 	public ResponseEntity<ApiResponse<CurrentBenefitSummaryResponse>> getMyCurrentBenefits(
-			@RequestHeader("X-Member-UUID") UUID memberUuid
+			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyCurrentBenefits : 현재 혜택 조회 요청 - memberUuid={}", memberUuid);
 		CurrentBenefitSummaryResponse response = toBenefitSummaryResponse(

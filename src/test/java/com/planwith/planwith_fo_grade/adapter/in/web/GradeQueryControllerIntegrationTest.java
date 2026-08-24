@@ -81,7 +81,7 @@ class GradeQueryControllerIntegrationTest {
 		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 62L, "follow-service", assignedAt);
 		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 410L, "like-service", assignedAt);
 
-		mockMvc.perform(get("/api/grade/grades/me").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.currentGrade.code").value("LEAF"))
@@ -120,7 +120,7 @@ class GradeQueryControllerIntegrationTest {
 		saveMetric(memberUuid, MemberMetricType.FOLLOWER_COUNT, 62L, "follow-service", assignedAt);
 		saveMetric(memberUuid, MemberMetricType.RECEIVED_LIKE_COUNT, 410L, "like-service", assignedAt);
 
-		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.grades.length()").value(6))
@@ -156,7 +156,7 @@ class GradeQueryControllerIntegrationTest {
 				assignedAt
 		));
 
-		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.grades.length()").value(6))
 				.andExpect(jsonPath("$.data.currentGrade.code").value("PLANWITH"))
@@ -178,7 +178,7 @@ class GradeQueryControllerIntegrationTest {
 				assignedAt
 		));
 
-		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.gradeCode").value("EXPLORER"))
 				.andExpect(jsonPath("$.data.monthlyTokenAmount").value(50))
@@ -200,7 +200,7 @@ class GradeQueryControllerIntegrationTest {
 				assignedAt
 		));
 
-		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Member-UUID", memberUuid))
+		mockMvc.perform(get("/api/grade/grades/me/benefits").header("X-Auth-User-Id", memberUuid))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.monthlyTokenAmount").value(120))
 				.andExpect(jsonPath("$.data.membershipAccess").value(true))
@@ -209,7 +209,7 @@ class GradeQueryControllerIntegrationTest {
 
 	@Test
 	void returnsNotFoundWhenMemberGradeIsMissing() throws Exception {
-		mockMvc.perform(get("/api/grade/grades/me").header("X-Member-UUID", UUID.randomUUID()))
+		mockMvc.perform(get("/api/grade/grades/me").header("X-Auth-User-Id", UUID.randomUUID()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("GRADE_NOT_FOUND"));
@@ -217,7 +217,7 @@ class GradeQueryControllerIntegrationTest {
 
 	@Test
 	void returnsNotFoundWhenIntegratedManagementMemberGradeIsMissing() throws Exception {
-		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Member-UUID", UUID.randomUUID()))
+		mockMvc.perform(get("/api/grade/grades/me/management").header("X-Auth-User-Id", UUID.randomUUID()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.error.code").value("GRADE_NOT_FOUND"));
