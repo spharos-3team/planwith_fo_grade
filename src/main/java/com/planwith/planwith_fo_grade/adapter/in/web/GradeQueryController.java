@@ -37,9 +37,15 @@ import com.planwith.planwith_fo_grade.application.query.GradeConditionView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementPageView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView;
 import com.planwith.planwith_fo_grade.application.query.GradeManagementView.MetricProgressView;
+import com.planwith.planwith_fo_grade.config.OpenApiConfig;
+
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping({"/api/grade", "/api/planwith-fo-grade"})
+@SecurityRequirement(name = OpenApiConfig.BEARER_SCHEME)
+@SecurityRequirement(name = OpenApiConfig.GATEWAY_USER_ID_SCHEME)
 public class GradeQueryController {
 
 	private static final String AUTHENTICATED_MEMBER_HEADER = "X-Auth-User-Id";
@@ -69,7 +75,7 @@ public class GradeQueryController {
 	// 내 등급 실시간 변경 알림 구독
 	@GetMapping(path = "/grades/me/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 	public ResponseEntity<SseEmitter> subscribeMyGradeUpdates(
-			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
+			@Parameter(hidden = true) @RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET subscribeMyGradeUpdates : 내 등급 실시간 변경 알림 구독 요청 - memberUuid={}",
 				memberUuid);
@@ -93,7 +99,7 @@ public class GradeQueryController {
 	// 내 등급 관리 조회
 	@GetMapping("/grades/me")
 	public ResponseEntity<ApiResponse<GradeManagementResponse>> getMyGradeManagement(
-			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
+			@Parameter(hidden = true) @RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyGradeManagement : 내 등급 관리 조회 요청 - memberUuid={}", memberUuid);
 		GradeManagementResponse response = toManagementResponse(getMyGradeManagementQueryUseCase.get(memberUuid.toString()));
@@ -104,7 +110,7 @@ public class GradeQueryController {
 	// 등급 관리 통합 조회
 	@GetMapping("/grades/me/management")
 	public ResponseEntity<ApiResponse<GradeManagementPageResponse>> getMyGradeManagementPage(
-			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
+			@Parameter(hidden = true) @RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyGradeManagementPage : 등급 관리 통합 조회 요청 - memberUuid={}", memberUuid);
 		GradeManagementPageResponse response = toPageResponse(
@@ -117,7 +123,7 @@ public class GradeQueryController {
 	// 현재 혜택 조회
 	@GetMapping("/grades/me/benefits")
 	public ResponseEntity<ApiResponse<CurrentBenefitSummaryResponse>> getMyCurrentBenefits(
-			@RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
+			@Parameter(hidden = true) @RequestHeader(AUTHENTICATED_MEMBER_HEADER) UUID memberUuid
 	) {
 		log.info("GradeQueryController : GET getMyCurrentBenefits : 현재 혜택 조회 요청 - memberUuid={}", memberUuid);
 		CurrentBenefitSummaryResponse response = toBenefitSummaryResponse(
