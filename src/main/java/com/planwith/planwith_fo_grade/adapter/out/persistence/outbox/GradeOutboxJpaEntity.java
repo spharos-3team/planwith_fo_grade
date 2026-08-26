@@ -11,7 +11,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 @Entity
@@ -37,8 +36,8 @@ class GradeOutboxJpaEntity {
 	@Column(name = "event_type", nullable = false, length = 50)
 	private String eventType;
 
-	@Lob
-	@Column(name = "payload", nullable = false)
+	@JdbcTypeCode(SqlTypes.LONGVARCHAR)
+	@Column(name = "payload", nullable = false, columnDefinition = "TEXT")
 	private String payload;
 
 	@Column(name = "occurred_at", nullable = false)
