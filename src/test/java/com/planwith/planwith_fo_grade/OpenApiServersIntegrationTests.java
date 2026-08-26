@@ -26,4 +26,14 @@ class OpenApiServersIntegrationTests {
 				.andExpect(jsonPath("$.servers[0].url").value("/"))
 				.andExpect(jsonPath("$.servers[0].description").value("API Gateway"));
 	}
+
+	@Test
+	void apiDocsPublishesHttpBearerSecurityScheme() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+				.andExpect(jsonPath("$.security[0].bearerAuth").exists());
+	}
 }
